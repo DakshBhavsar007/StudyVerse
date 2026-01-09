@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends "layout.html" %}
 
 {% block title %}Analytics - StudyVerse{% endblock %}
@@ -441,4 +442,449 @@
         }
     }
 </script>
+=======
+{% extends "layout.html" %}
+
+{% block title %}Analytics - StudyVerse{% endblock %}
+
+{% block content %}
+<div class="page-header" style="display: flex; justify-content: space-between; align-items: center;">
+    <div>
+        <h1 class="page-title">Analytics Dashboard</h1>
+        <p style="color: var(--text-secondary);">Track your growth, skills, and consistency.</p>
+    </div>
+    <button onclick="openSubjectModal()" class="btn btn-primary btn-sm">
+        <i class="fa-solid fa-plus"></i> Manage Subjects
+    </button>
+</div>
+
+<!-- Main Analytics Grid -->
+<div class="analytics-grid" style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; margin-bottom: 24px;">
+
+    <!-- Focus Trend -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Focus Trend</div>
+            <select id="trendFilter" onchange="fetchAnalytics()" class="theme-select">
+                <option value="1">Last 24 Hours</option>
+                <option value="3">Last 3 Days</option>
+                <option value="5">Last 5 Days</option>
+                <option value="7" selected>Last 7 Days</option>
+            </select>
+        </div>
+        <div style="height: 300px; position: relative;">
+            <canvas id="focusLineChart"></canvas>
+        </div>
+    </div>
+
+    <!-- Skill Radar -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Skill Radar</div>
+            <div class="question-mark tooltip-container" style="cursor: help; color: var(--text-secondary);">
+                <i class="fa-regular fa-circle-question"></i>
+                <div class="tooltip-text">
+                    Proficiency calculated via study duration & consistency.<br>
+                    <hr style="border-color: rgba(255,255,255,0.1); margin: 6px 0;">
+                    <span style="color: var(--accent-green)">High Score?</span> Maintain streak + study 10h+
+                </div>
+            </div>
+        </div>
+        <div style="height: 300px; position: relative; display: flex; justify-content: center; align-items: center;">
+            <canvas id="skillRadarChart"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- Topic Distribution -->
+<div class="card" style="margin-bottom: 40px;">
+    <div class="card-header">
+        <div class="card-title">Topic Distribution</div>
+        <div style="font-size: 0.9rem; color: var(--text-secondary);">Total Study Hours: <span id="totalHoursDisplay"
+                class="text-green">0h</span></div>
+    </div>
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; align-items: center;">
+        <div style="height: 300px; position: relative; display: flex; justify-content: center;">
+            <canvas id="topicDoughnutChart"></canvas>
+        </div>
+        <!-- Legend / Stats List -->
+        <div id="topicLegend"
+            style="display: flex; flex-direction: column; gap: 12px; max-height: 300px; overflow-y: auto;">
+            <!-- By JS -->
+        </div>
+    </div>
+</div>
+
+<!-- Manage Subjects Modal -->
+<div id="subjectModal" class="modal">
+    <div class="modal-content" style="max-width: 400px;">
+        <div class="modal-header">
+            <h3 class="card-title">Manage Subjects</h3>
+            <span class="close-modal" onclick="closeSubjectModal()">&times;</span>
+        </div>
+        <div style="margin-bottom: 20px;">
+            <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">Add New Subject</h4>
+            <div style="display: flex; gap: 8px;">
+                <input type="text" id="newSubjectName" placeholder="Subject Name (e.g. Physics)"
+                    style="flex: 1; padding: 10px; background: #1e1e1e; border: 1px solid var(--border); border-radius: 6px; color: white;">
+                <input type="color" id="newSubjectColor" value="#4ade80"
+                    style="width: 40px; height: 40px; padding: 0; border: none; background: none; cursor: pointer;">
+                <button onclick="createSubject()" class="btn btn-primary" style="padding: 0 16px;">
+                    <i class="fa-solid fa-plus"></i>
+                </button>
+            </div>
+        </div>
+
+        <div style="border-top: 1px solid var(--border); padding-top: 16px;">
+            <h4 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">Existing Subjects</h4>
+            <div id="subjectList"
+                style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;">
+                <!-- Populated by JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.querySelector('[data-nav="progress"]').classList.add('active');
+
+    // Globals
+    let myFocusChart, myRadarChart, myDoughnutChart;
+
+    // --- Data Fetching ---
+    async function fetchAnalytics() {
+        try {
+            const days = document.getElementById('trendFilter').value;
+            const res = await fetch(`/api/analytics/data?days=${days}`);
+            const data = await res.json();
+            renderDashboard(data);
+        } catch (e) {
+            console.error("Failed to load analytics:", e);
+        }
+    }
+
+    async function fetchSubjects() {
+        try {
+            const res = await fetch('/api/subjects');
+            const data = await res.json();
+            renderSubjectList(data);
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    // --- Rendering Charts ---
+    function renderDashboard(data) {
+        document.getElementById('totalHoursDisplay').innerText = data.total_hours + 'h';
+
+        initFocusChart(data.trend);
+        initRadarChart(data.subjects);
+        initDoughnutChart(data.subjects);
+        updateTopicLegend(data.subjects);
+    }
+
+    function initFocusChart(trend) {
+        const ctx = document.getElementById('focusLineChart').getContext('2d');
+        if (myFocusChart) myFocusChart.destroy();
+
+        // Create gradient
+        const gradient = ctx.createLinearGradient(0, 0, 0, 300);
+        gradient.addColorStop(0, 'rgba(74, 222, 128, 0.2)');
+        gradient.addColorStop(1, 'rgba(74, 222, 128, 0)');
+
+        myFocusChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: trend.labels,
+                datasets: [{
+                    label: 'Focus Hours',
+                    data: trend.data,
+                    borderColor: '#4ade80',
+                    backgroundColor: gradient,
+                    borderWidth: 2,
+                    pointBackgroundColor: '#181818',
+                    pointBorderColor: '#4ade80',
+                    pointBorderWidth: 2,
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        backgroundColor: '#1e1e1e',
+                        titleColor: '#fff',
+                        bodyColor: '#a1a1aa',
+                        borderColor: '#27272a',
+                        borderWidth: 1
+                    }
+                },
+                scales: {
+                    y: {
+                        grid: { color: 'rgba(255,255,255,0.05)' },
+                        ticks: { color: '#71717a' },
+                        beginAtZero: true
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#71717a' }
+                    }
+                }
+            }
+        });
+    }
+
+    function initRadarChart(subjects) {
+        const ctx = document.getElementById('skillRadarChart').getContext('2d');
+        if (myRadarChart) myRadarChart.destroy();
+
+        if (!subjects || subjects.length < 3) {
+            // Placeholder logic if not enough data for a good radar
+            // Or just plot what we have
+        }
+
+        const labels = subjects.map(s => s.subject);
+        const dataPoints = subjects.map(s => s.proficiency);
+
+        myRadarChart = new Chart(ctx, {
+            type: 'radar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Proficiency Score',
+                    data: dataPoints,
+                    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                    borderColor: '#3b82f6',
+                    pointBackgroundColor: '#3b82f6',
+                    pointHoverBackgroundColor: '#fff',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    r: {
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        angleLines: { color: 'rgba(255,255,255,0.1)' },
+                        pointLabels: {
+                            color: '#a1a1aa',
+                            font: { size: 11 }
+                        },
+                        ticks: { display: false, backdropColor: 'transparent' },
+                        suggestedMin: 0,
+                        suggestedMax: 100
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    function initDoughnutChart(subjects) {
+        const ctx = document.getElementById('topicDoughnutChart').getContext('2d');
+        if (myDoughnutChart) myDoughnutChart.destroy();
+
+        const dataPoints = subjects.map(s => s.hours);
+        const colors = subjects.map(s => s.color);
+        const labels = subjects.map(s => s.subject);
+
+        myDoughnutChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: dataPoints,
+                    backgroundColor: colors,
+                    borderWidth: 0,
+                    hoverOffset: 10
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function (context) {
+                                return ` ${context.label}: ${context.raw}h`;
+                            }
+                        }
+                    }
+                },
+                cutout: '70%'
+            }
+        });
+    }
+
+    function updateTopicLegend(subjects) {
+        const container = document.getElementById('topicLegend');
+        container.innerHTML = '';
+
+        subjects.sort((a, b) => b.hours - a.hours); // Sort by hours desc
+
+        subjects.forEach(sub => {
+            const div = document.createElement('div');
+            div.className = 'legend-item'; // Add class for hover effect
+            div.onclick = function () { toggleTopicVisibility(this, sub.subject); }; // Click handler
+            div.style.cssText = `display: flex; align-items: center; justify-content: space-between; font-size: 0.9rem; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.03);`;
+            div.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div style="width: 10px; height: 10px; border-radius: 50%; background: ${sub.color};"></div>
+                    <span style="color: var(--text-primary);">${sub.subject}</span>
+                </div>
+                <div style="color: var(--text-secondary);">${sub.hours}h <span style="font-size: 0.8rem; opacity: 0.7;">(${sub.proficiency}%)</span></div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    function toggleTopicVisibility(element, subjectName) {
+        if (!myDoughnutChart) return;
+
+        // Find index of subject in chart labels
+        const index = myDoughnutChart.data.labels.indexOf(subjectName);
+        if (index === -1) return;
+
+        // Toggle visibility in chart
+        myDoughnutChart.toggleDataVisibility(index);
+        myDoughnutChart.update();
+
+        // Toggle visual style of legend item
+        element.classList.toggle('excluded');
+    }
+
+    // --- Subject Management Logic ---
+    function openSubjectModal() {
+        document.getElementById('subjectModal').style.display = 'flex';
+        fetchSubjects();
+    }
+
+    function closeSubjectModal() {
+        document.getElementById('subjectModal').style.display = 'none';
+        fetchAnalytics(); // Refresh analytics when closing
+    }
+
+    function renderSubjectList(list) {
+        const container = document.getElementById('subjectList');
+        container.innerHTML = '';
+
+        if (list.length === 0) {
+            container.innerHTML = '<div style="color: var(--text-muted); text-align: center; font-size: 0.9rem;">No subjects added yet.</div>';
+            return;
+        }
+
+        list.forEach(sub => {
+            const item = document.createElement('div');
+            item.style.cssText = `display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 6px;`;
+            item.innerHTML = `
+                <div style="display: flex; align-items: center; gap: 10px; flex: 1;">
+                    <input type="color" value="${sub.color}" onchange="updateSubject('${sub.id}', this.value, '${sub.name}')" 
+                           style="width: 20px; height: 20px; border: none; background: none; cursor: pointer;">
+                    <span id="subject-name-${sub.id}" style="color: white; font-size: 0.9rem;">${sub.name}</span>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="startEditingSubject('${sub.id}', '${sub.name}', '${sub.color}')" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; opacity: 0.7;">
+                        <i class="fa-solid fa-pen"></i>
+                    </button>
+                    <button onclick="deleteSubject('${sub.id}')" style="background: none; border: none; color: var(--destructive); cursor: pointer; opacity: 0.7;">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    function startEditingSubject(id, currentName, currentColor) {
+        const span = document.getElementById(`subject-name-${id}`);
+        if (!span) return;
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = currentName;
+        input.style.cssText = `
+            background: rgba(255,255,255,0.1); border: 1px solid var(--accent-green); 
+            color: white; border-radius: 4px; padding: 2px 6px; font-size: 0.9rem; width: 150px;
+        `;
+
+        span.replaceWith(input);
+        input.focus();
+
+        const save = async () => {
+            const newName = input.value.trim();
+            if (newName && newName !== currentName) {
+                await updateSubject(id, currentColor, newName);
+                fetchSubjects(); // Refresh list to reset UI
+            } else {
+                fetchSubjects(); // Revert
+            }
+        };
+
+        input.addEventListener('blur', save);
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                input.blur();
+            }
+        });
+    }
+
+    async function createSubject() {
+        const nameInput = document.getElementById('newSubjectName');
+        const colorInput = document.getElementById('newSubjectColor');
+        const name = nameInput.value.trim();
+        const color = colorInput.value;
+
+        if (!name) return;
+
+        try {
+            await fetch('/api/subjects', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            });
+            nameInput.value = '';
+            fetchSubjects(); // Refresh list
+        } catch (e) { alert("Failed to create subject"); }
+    }
+
+    async function deleteSubject(id) {
+        if (!confirm("Delete this subject?")) return;
+        await fetch(`/api/subjects/${id}`, { method: 'DELETE' });
+        fetchSubjects();
+    }
+
+    async function updateSubject(id, color, name) {
+        await fetch(`/api/subjects/${id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color })
+        });
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+        fetchAnalytics();
+    });
+
+    // Close modal on click outside
+    window.onclick = function (event) {
+        if (event.target == document.getElementById('subjectModal')) {
+            closeSubjectModal();
+        }
+    }
+</script>
+>>>>>>> f5971551499e078e14bc7548b7a15e1f97eb6644
 {% endblock %}

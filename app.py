@@ -1,3 +1,4 @@
+
 from flask import Flask, render_template, request, session, redirect, url_for, Response, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user, UserMixin
@@ -2910,16 +2911,18 @@ if __name__ == '__main__':
         # Auto-migration for schema updates
         try:
             inspector = inspect(db.engine)
-            with db.engine.connect() as conn:
-                # 1. Check for file_path in group_chat_message
-                if 'group_chat_message' in inspector.get_table_names():
-                    columns = [c['name'] for c in inspector.get_columns('group_chat_message')]
-                    if 'file_path' not in columns:
-                        print("Running migration: Adding file_path to group_chat_message table...")
+            # 1. Check for file_path in group_chat_message
+            if 'group_chat_message' in inspector.get_table_names():
+                columns = [c['name'] for c in inspector.get_columns('group_chat_message')]
+                if 'file_path' not in columns:
+                    print("Running migration: Adding file_path to group_chat_message table...")
+                    with db.engine.connect() as conn:
                         conn.execute(text("ALTER TABLE group_chat_message ADD COLUMN file_path VARCHAR(255)"))
-                
-                # 2. Check for columns in user table
-                if 'user' in inspector.get_table_names():
+                        conn.commit()
+            
+            # 2. Check for columns in user table
+            if 'user' in inspector.get_table_names():
+                with db.engine.connect() as conn:
                     columns = [c['name'] for c in inspector.get_columns('user')]
                     
                     # New Features (Friends/Public Profile)
@@ -2957,16 +2960,17 @@ if __name__ == '__main__':
                     if 'last_activity_date' not in columns:
                         print("Running migration: Adding last_activity_date to user table...")
                         conn.execute(text("ALTER TABLE user ADD COLUMN last_activity_date DATE"))
-
-
-                # 3. Check for study_session columns
-                if 'study_session' in inspector.get_table_names():
+                    conn.commit() # Commit user table changes
+            
+            # 3. Check for study_session columns
+            if 'study_session' in inspector.get_table_names():
+                with db.engine.connect() as conn:
                     columns = [c['name'] for c in inspector.get_columns('study_session')]
                     if 'subject_id' not in columns:
                         print("Running migration: Adding subject_id to study_session table...")
                         conn.execute(text("ALTER TABLE study_session ADD COLUMN subject_id INTEGER REFERENCES subject(id)"))
-                
-                conn.commit()
+                    conn.commit() # Commit study_session changes
+            
             print("Migration checks completed.")
         except Exception as e:
             print(f"Migration check failed (safe to ignore if new DB): {e}")

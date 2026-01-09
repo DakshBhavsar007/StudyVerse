@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends "layout.html" %}
 
 {% block title %}Focus Mode - StudyVerse{% endblock %}
@@ -91,4 +92,99 @@
 <script>
     document.querySelector('[data-nav="pomodoro"]').classList.add('active');
 </script>
+=======
+{% extends "layout.html" %}
+
+{% block title %}Focus Mode - StudyVerse{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1 class="page-title">Focus Station</h1>
+</div>
+
+<!-- Focus Grid -->
+<div style="display: grid; grid-template-columns: 2fr 1fr; gap: 24px; height: calc(100vh - 120px);">
+
+    <!-- Left Column: Timer & Controls -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <!-- Timer Card -->
+        <div class="card timer-card">
+            <!-- Background Image Overlay -->
+            <div class="timer-bg-overlay"></div>
+
+            <div class="timer-content">
+                <div class="mode-switcher">
+                    <button class="mode-btn active" id="focusMode" data-mode="focus">Pomodoro</button>
+                    <button class="mode-btn" id="shortBreakMode" data-mode="shortBreak">Short Break</button>
+                    <button class="mode-btn" id="stopwatchMode" data-mode="stopwatch">Stopwatch</button>
+                </div>
+
+                <div style="margin-top: 20px; width: 200px;">
+                    <select id="subject-select"
+                        style="width: 100%; background: rgba(255,255,255,0.05); color: var(--text-primary); border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; outline: none; cursor: pointer;">
+                        <option value="" style="background: #1e1e1e;">Select Subject</option>
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div id="timer-display" class="timer-digits">25:00</div>
+                <div id="timerLabel" style="display: none;">Focus</div> <!-- Hidden label for JS compatibility -->
+
+                <div class="timer-controls">
+                    <button id="start-btn" class="btn-timer-primary">Start</button>
+                    <button id="reset-btn" class="btn-timer-secondary"><i class="fa-solid fa-rotate-right"></i></button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Music Player -->
+        <div class="card music-card" style="padding: 0; overflow: hidden;">
+            <iframe style="border-radius:12px"
+                src="https://open.spotify.com/embed/playlist/0vvXsWCC9xrXsKd4FyS8kM?utm_source=generator" width="100%"
+                height="80" frameBorder="0" allowfullscreen=""
+                allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+                loading="lazy"></iframe>
+        </div>
+    </div>
+
+    <!-- Right Column: Brain Dump & Notes -->
+    <div class="card" style="display: flex; flex-direction: column;">
+        <div class="card-header">
+            <div class="card-title">Brain Dump</div>
+            <div style="display: flex; gap: 10px;">
+                <span id="save-status"
+                    style="font-size: 0.8rem; color: var(--text-secondary); opacity: 0; transition: opacity 0.3s;">Saved</span>
+                <i class="fa-solid fa-eraser" id="clear-notes"
+                    style="cursor: pointer; color: var(--text-secondary);"></i>
+            </div>
+        </div>
+        <textarea id="brain-dump-area" placeholder="Type distractive thoughts here to clear your mind..."
+            style="flex: 1; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: 8px; color: white; padding: 16px; resize: none; font-family: var(--font-body); line-height: 1.6; min-height: 200px;"></textarea>
+
+        <div style="margin-top: 24px; flex: 1; display: flex; flex-direction: column; overflow: hidden;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <div style="font-size: 0.9rem; font-weight: 600;">Session Goals</div>
+                <div class="session-goals-input" style="display: flex; gap: 8px; margin-bottom: 12px;">
+                    <input type="text" id="new-goal-input" placeholder="Add a session goal..."
+                        style="flex: 1; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: rgba(255,255,255,0.05); color: white;">
+                    <button id="add-goal-btn" class="btn-timer-secondary" style="width: auto; padding: 0 12px;"><i
+                            class="fa-solid fa-plus"></i></button>
+                </div>
+            </div>
+
+            <div id="session-goals-list" style="display: flex; flex-direction: column; gap: 8px; overflow-y: auto;">
+                <!-- Goals will be injected here via JS -->
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/pomodoro.js') }}"></script>
+<script>
+    document.querySelector('[data-nav="pomodoro"]').classList.add('active');
+</script>
+>>>>>>> f5971551499e078e14bc7548b7a15e1f97eb6644
 {% endblock %}

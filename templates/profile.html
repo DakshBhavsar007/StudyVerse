@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 {% extends "layout.html" %}
 
 {% block title %}Profile - StudyVerse{% endblock %}
@@ -585,4 +586,593 @@
             });
     });
 </script>
+=======
+{% extends "layout.html" %}
+
+{% block title %}Profile - StudyVerse{% endblock %}
+
+{% block content %}
+<!-- Profile Hero with Video Background -->
+<div class="profile-hero"
+    style="position: relative; height: 240px; border-radius: 18px; overflow: hidden; background: #000; margin-bottom: 24px;">
+    <!-- Background Video -->
+    <video autoplay loop muted playsinline
+        style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;">
+        <source src="/static/img/bg3.mp4" type="video/mp4">
+    </video>
+
+    <!-- Dark Overlay -->
+    <div style="position: absolute; inset: 0; background: rgba(0, 0, 0, 0.6); z-index: 1;"></div>
+
+    <!-- Profile Content -->
+    <div
+        style="position: relative; z-index: 2; height: 100%; padding: 32px; display: flex; align-items: center; justify-content: space-between;">
+
+        <!-- Left: Avatar + Info -->
+        <div style="display: flex; align-items: center; gap: 24px;">
+            <img id="profile-avatar" src="{{ user.get_avatar(200) }}"
+                style="width: 120px; height: 120px; border-radius: 50%; border: 4px solid rgba(255,255,255,0.2); object-fit: cover;">
+
+            <div>
+                <h2 id="profile-name"
+                    style="font-size: 2rem; margin-bottom: 4px; color: white; font-family: var(--font-heading);">
+                    {{ user.first_name }} {{ user.last_name }}
+                </h2>
+                <p id="profile-major" style="color: rgba(255,255,255,0.8); font-size: 1rem;">
+                    {{ user.email }}
+                </p>
+                {% if user.id != current_user.id %}
+                <div style="margin-top: 8px;">
+                    {% if not user.is_public_profile %}
+                    <span class="badge"
+                        style="background: rgba(255,255,255,0.1); color: var(--text-secondary); font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
+                        <i class="fa-solid fa-lock"></i> Private Profile
+                    </span>
+                    {% else %}
+                    <span class="badge"
+                        style="background: rgba(74, 222, 128, 0.1); color: var(--accent-green); font-size: 0.8rem; padding: 4px 10px; border-radius: 12px;">
+                        <i class="fa-solid fa-globe"></i> Public Profile
+                    </span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right: Edit Button (Only for owner) -->
+        {% if user.id == current_user.id %}
+        <div>
+            <button class="btn btn-primary" onclick="openEditModal()">
+                <i class="fa-solid fa-pen"></i> Edit Profile
+            </button>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+
+<!-- Stats Row (Privacy Check) -->
+{% if user.id == current_user.id or user.is_public_profile %}
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(74, 222, 128, 0.1); color: var(--accent-green);">
+            <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-level">{{ user.level }}</div>
+            <div class="stat-label">Current Level</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-hours">{{ total_focus_hours }}h</div>
+            <div class="stat-label">Focus Time</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+            <i class="fa-solid fa-fire"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-streak">{{ user.current_streak }}</div>
+            <div class="stat-label">Day Streak</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <i class="fa-solid fa-star"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-xp">{{ user.total_xp }}</div>
+            <div class="stat-label">Total XP</div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div
+    style="background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px; padding: 40px; text-align: center; margin-bottom: 32px;">
+    <div style="font-size: 2rem; color: var(--text-secondary); margin-bottom: 16px;">
+        <i class="fa-solid fa-lock"></i>
+    </div>
+    <h3 style="margin-bottom: 8px;">This profile is private</h3>
+    <p style="color: var(--text-secondary);">Focus stats and achievements are hidden.</p>
+</div>
+{% endif %}
+
+<div class="profile-grid-main">
+    <!-- Left: Content Area -->
+    <div class="card" style="padding: 32px;">
+        <div class="tab-nav">
+            <div class="tab-link active" onclick="openTab('overview', this)">Overview</div>
+            {% if user.id == current_user.id or user.is_public_profile %}
+            <div class="tab-link" onclick="openTab('activity', this)">Recent Activity</div>
+            {% endif %}
+            {% if user.id == current_user.id %}
+            <div id="settings-tab-link" class="tab-link" onclick="openTab('settings', this)">Settings</div>
+            {% endif %}
+        </div>
+
+        <div id="tab-content">
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-pane">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <div>
+                        <h3 style="margin-bottom: 20px; font-size: 1.1rem; font-weight: 600;">Badges & Achievements</h3>
+                        {% if user.id == current_user.id or user.is_public_profile %}
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            {% if badges %}
+                            {% for user_badge in badges %}
+                            <div class="badge-item">
+                                <div class="badge-icon"><i class="fa-solid {{ user_badge.badge.icon }}"></i></div>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">{{ user_badge.badge.name }}</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">{{
+                                        user_badge.badge.description }}</div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                            {% else %}
+                            <div style="color: var(--text-secondary); font-size: 0.9rem;">No badges earned yet.</div>
+                            {% endif %}
+                        </div>
+                        {% else %}
+                        <div style="color: var(--text-secondary); font-size: 0.9rem; font-style: italic;">
+                            <i class="fa-solid fa-lock"></i> Badges are hidden.
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 20px; font-size: 1.1rem; font-weight: 600;">About Me</h3>
+                        <p id="profile-about-me"
+                            style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px; white-space: pre-wrap;">
+                            {{ user.about_me or "Tell us about yourself! Click 'Edit Profile' to add a bio." }}
+                        </p>
+                        <div style="display: flex; gap: 10px;">
+                            <span class="badge badge-low"
+                                style="background: rgba(255,255,255,0.05); color: white;">#coding</span>
+                            <span class="badge badge-low"
+                                style="background: rgba(255,255,255,0.05); color: white;">#algorithms</span>
+                            <span class="badge badge-low"
+                                style="background: rgba(255,255,255,0.05); color: white;">#focus</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Tab (Hidden by default) -->
+            {% if user.id == current_user.id or user.is_public_profile %}
+            <div id="activity-tab" class="tab-pane" style="display: none;">
+                <div class="notification-list">
+                    <div style="padding: 16px 0; border-bottom: 1px solid var(--border); display: flex; gap: 16px;">
+                        <div
+                            style="width: 40px; height: 40px; background: rgba(74, 222, 128, 0.1); color: var(--accent-green); border-radius: 50%; display: grid; place-items: center;">
+                            <i class="fa-solid fa-trophy"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.95rem;"><strong>Level up!</strong> {{ user.first_name }} is now
+                                Level {{ user.level }}.</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">Recent
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Settings Tab (Hidden by default) -->
+            {% if user.id == current_user.id %}
+            <div id="settings-tab" class="tab-pane" style="display: none;">
+                <div class="settings-group">
+                    <h3>Account Preferences</h3>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Email Notifications</h4>
+                            <p>Receive weekly progress reports and deadline reminders.</p>
+                        </div>
+                        <input type="checkbox" checked
+                            style="width: 20px; height: 20px; accent-color: var(--accent-green);">
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Public Profile</h4>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Allow friends to see your
+                                focus stats and leaderboard rank.</div>
+                        </div>
+                        <input type="checkbox" id="publicProfileToggle" {% if user.is_public_profile %}checked{% endif
+                            %} style="width: 20px; height: 20px; accent-color: var(--accent-green);">
+                    </div>
+                </div>
+
+
+
+                <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 16px;">
+                    <div style="border-top: 1px solid var(--border); padding-top: 24px;">
+                        <h3 style="color: #ef4444; margin-bottom: 16px;">Danger Zone</h3>
+                        <a href="{{ url_for('logout') }}" class="btn"
+                            style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); width: fit-content; padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; transition: all 0.2s;">
+                            <i class="fa-solid fa-right-from-bracket"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Right: Timeline/Friends -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: white; font-family: var(--font-body); font-weight: 600;">Upcoming
+                    Deadlines</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                {% if user.id == current_user.id %}
+                {% if calendar_events %}
+                {% for event in calendar_events[:3] %}
+                <div style="display: flex; gap: 12px; align-items: start;">
+                    <div
+                        style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 50px;">
+                        <div style="font-weight: 700;">{{ event.due_date.split('-')[2] if event.due_date and '-' in
+                            event.due_date else '??' }}</div>
+                        <div style="font-size: 0.7rem; text-transform: uppercase;">due</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600;">{{ event.title }}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">{{ event.category or 'General' }}
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">No upcoming deadlines.</div>
+                {% endif %}
+                {% else %}
+                <div style="color: var(--text-secondary); font-size: 0.9rem; font-style: italic;">
+                    <i class="fa-solid fa-lock"></i> Deadlines are private.
+                </div>
+                {% endif %}
+            </div>
+            {% if user.id == current_user.id %}
+            <a href="{{ url_for('calendar_view') }}" class="btn-primary"
+                style="margin-top: 20px; width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; text-decoration: none; display: block; text-align: center;">View
+                Calendar</a>
+            {% endif %}
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: white; font-family: var(--font-body); font-weight: 600;">Focus
+                    Buddies</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                {% if user.id == current_user.id %}
+                {% if focus_buddies %}
+                {% for buddy in focus_buddies %}
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="position: relative;">
+                        <img src="{{ buddy.avatar }}" style="width: 32px; height: 32px; border-radius: 50%;">
+                        {% if buddy.is_online %}
+                        <div
+                            style="position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; border: 1px solid #000;">
+                        </div>
+                        {% else %}
+                        <div
+                            style="position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; background: #ef4444; border-radius: 50%; border: 1px solid #000;">
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ buddy.name }}</div>
+                        {% if buddy.is_public and buddy.rank %}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                            {{ buddy.rank.name }} • Lvl {{ buddy.stats.level }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                    No friends yet. Add some!
+                </div>
+                {% endif %}
+                {% else %}
+                <div style="color: var(--text-secondary); font-size: 0.9rem; font-style: italic;">
+                    <i class="fa-solid fa-lock"></i> Focus buddies are private.
+                </div>
+                {% endif %}
+            </div>
+            {% if user.id == current_user.id %}
+            <a href="/friends" class="btn-primary"
+                style="margin-top: 20px; width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); text-decoration: none; display: block; text-align: center;">Find
+                Friends</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+<!-- Edit Profile Modal -->
+<div id="editProfileModal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000; place-items: center;">
+    <div
+        style="background: #1a1a1a; padding: 32px; border-radius: 16px; width: 100%; max-width: 500px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+        <h3 style="margin-bottom: 24px; font-size: 1.5rem; color: white;">Edit Profile</h3>
+        <form id="modalProfileForm" style="display: flex; flex-direction: column; gap: 20px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-secondary);">First
+                        Name</label>
+                    <input type="text" id="modalFirstName" value="{{ user.first_name }}"
+                        style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white;">
+                </div>
+                <div>
+                    <label
+                        style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-secondary);">Last
+                        Name</label>
+                    <input type="text" id="modalLastName" value="{{ user.last_name }}"
+                        style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white;">
+                </div>
+            </div>
+            <div>
+                <label
+                    style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-secondary);">Email
+                    Address</label>
+                <input type="email" id="modalEmail" value="{{ user.email }}"
+                    style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white;">
+            </div>
+
+            <div>
+                <label
+                    style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-secondary);">About
+                    Me</label>
+                <textarea id="modalAboutMe" rows="4"
+                    style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white; resize: vertical; font-family: inherit;">{{ user.about_me or '' }}</textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+                <button type="button" onclick="closeEditModal()"
+                    style="padding: 10px 24px; border-radius: 8px; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; transition: all 0.2s;"
+                    onmouseover="this.style.color='white'; this.style.borderColor='white'"
+                    onmouseout="this.style.color='var(--text-secondary)'; this.style.borderColor='var(--border)'">
+                    Cancel
+                </button>
+                <button type="submit" class="btn btn-primary" style="padding: 10px 24px;">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Calendar Modal -->
+
+
+<!-- Quick Add Task Modal -->
+<div id="quickAddModal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1100; place-items: center;">
+    <div
+        style="background: #1a1a1a; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+
+        <h3 id="quick-add-title" style="font-size: 1.2rem; color: white; margin-bottom: 16px;">Add Task</h3>
+
+        <form action="{{ url_for('todos_add') }}" method="POST"
+            style="display: flex; flex-direction: column; gap: 16px;">
+            <input type="hidden" name="due_date" id="quick-due-date">
+            <input type="hidden" name="next" value="{{ request.url }}"> <!-- Redirect back here -->
+
+            <div>
+                <label style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-secondary);">Task
+                    Title</label>
+                <input type="text" name="title" required placeholder="Ex: Math Homework"
+                    style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white;">
+            </div>
+
+            <div>
+                <label
+                    style="display: block; margin-bottom: 8px; font-size: 0.9rem; color: var(--text-secondary);">Priority</label>
+                <select name="priority"
+                    style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white; appearance: none; -webkit-appearance: none;">
+                    <option value="low" style="background: #1a1a1a; color: white;">Low</option>
+                    <option value="medium" selected style="background: #1a1a1a; color: white;">Medium</option>
+                    <option value="high" style="background: #1a1a1a; color: white;">High</option>
+                </select>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 12px; margin-top: 8px;">
+                <button type="button" onclick="closeQuickAddModal()"
+                    style="padding: 10px 24px; border-radius: 12px; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer;">
+                    Cancel
+                </button>
+                <button type="submit" class="btn-primary" style="padding: 10px 24px; border-radius: 12px;">Add
+                    Task</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Task Details Modal --> 
+<div id="taskDetailsModal"
+    style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 1200; place-items: center;">
+    <div
+        style="background: #1a1a1a; padding: 24px; border-radius: 16px; width: 100%; max-width: 400px; border: 1px solid var(--border); box-shadow: 0 4px 20px rgba(0,0,0,0.5);">
+
+        <h3 id="detail-task-title" style="font-size: 1.2rem; color: white; margin-bottom: 24px;">Task Title</h3>
+
+        <div style="display: flex; gap: 12px;">
+            <!-- Complete Button -->
+            <form id="form-complete" method="POST" style="flex: 1;">
+                <input type="hidden" name="next" value="{{ request.url }}">
+                <button type="submit" id="btn-complete" class="btn-primary"
+                    style="width: 100%; border-radius: 12px; background: var(--accent-green); color: black; border: none;">
+                    <i class="fa-solid fa-check"></i> Complete
+                </button>
+            </form>
+
+            <!-- Delete Button -->
+            <form id="form-delete" method="POST" style="flex: 1;" onsubmit="return confirm('Delete this task?');">
+                <input type="hidden" name="next" value="{{ request.url }}">
+                <button type="submit" class="btn"
+                    style="width: 100%; border-radius: 12px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">
+                    <i class="fa-solid fa-trash"></i> Delete
+                </button>
+            </form>
+        </div>
+
+        <button onclick="closeTaskDetailsModal()"
+            style="margin-top: 16px; width: 100%; padding: 10px; background: transparent; border: none; color: var(--text-secondary); cursor: pointer;">
+            Close
+        </button>
+
+    </div>
+</div>
+
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Close on outside click
+    document.getElementById('quickAddModal').addEventListener('click', (e) => {
+        if (e.target.id === 'quickAddModal') closeQuickAddModal();
+    });
+
+    document.getElementById('taskDetailsModal').addEventListener('click', (e) => {
+        if (e.target.id === 'taskDetailsModal') closeTaskDetailsModal();
+    });
+</script>
+<script>
+    document.querySelector('[data-nav="settings"]').classList.add('active');
+
+    function openTab(tabName, btn) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+        // Deactivate all buttons
+        document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
+
+        // Show target tab
+        document.getElementById(tabName + '-tab').style.display = 'block';
+        // Activate button
+        btn.classList.add('active');
+    }
+
+    // Public Profile Toggle
+    const publicProfileToggle = document.getElementById('publicProfileToggle');
+    if (publicProfileToggle) {
+        publicProfileToggle.addEventListener('change', (e) => {
+            fetch('/settings/public-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_public: e.target.checked })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        alert('Failed to update setting');
+                        e.target.checked = !e.target.checked;
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Failed to update setting');
+                    e.target.checked = !e.target.checked;
+                });
+        });
+    }
+</script>
+<script>
+    function openEditModal() {
+        const modal = document.getElementById('editProfileModal');
+        modal.style.display = 'grid';
+        // Add fade in effect if desired
+    }
+
+    function closeEditModal() {
+        const modal = document.getElementById('editProfileModal');
+        modal.style.display = 'none';
+    }
+
+    // Close modal on outside click
+    document.getElementById('editProfileModal').addEventListener('click', (e) => {
+        if (e.target.id === 'editProfileModal') {
+            closeEditModal();
+        }
+    });
+
+    document.getElementById('modalProfileForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const btn = this.querySelector('button[type="submit"]');
+        const originalText = btn.innerText;
+        btn.innerText = 'Saving...';
+        btn.disabled = true;
+
+        const data = {
+            first_name: document.getElementById('modalFirstName').value,
+            last_name: document.getElementById('modalLastName').value,
+            email: document.getElementById('modalEmail').value,
+            about_me: document.getElementById('modalAboutMe').value
+        };
+
+        fetch('/settings/update', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.status === 'success') {
+                    // Update UI elements immediately
+                    document.getElementById('profile-name').innerText = `${data.first_name} ${data.last_name}`;
+                    document.getElementById('profile-major').innerText = data.email;
+
+                    const aboutMeEl = document.getElementById('profile-about-me');
+                    if (aboutMeEl) aboutMeEl.innerText = data.about_me || "Tell us about yourself! Click 'Edit Profile' to add a bio.";
+
+                    btn.innerText = 'Saved!';
+                    btn.style.background = 'var(--accent-green)';
+                    setTimeout(() => {
+                        btn.innerText = originalText;
+                        btn.style.background = '';
+                        btn.disabled = false;
+                        closeEditModal();
+                    }, 1000);
+                } else {
+                    alert('Error: ' + (result.message || 'Failed to update profile'));
+                    btn.innerText = originalText;
+                    btn.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while saving.');
+                btn.innerText = originalText;
+                btn.disabled = false;
+            });
+    });
+</script>
+>>>>>>> f5971551499e078e14bc7548b7a15e1f97eb6644
 {% endblock %}
