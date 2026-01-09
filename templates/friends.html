@@ -1,0 +1,222 @@
+{% extends "layout.html" %}
+
+{% block title %}Friends - StudyVerse{% endblock %}
+
+{% block content %}
+<div class="page-header"
+    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+    <h1 class="page-title">Friends & Community</h1>
+    <div class="top-actions" style="display: flex; gap: 16px;">
+        <div class="mode-switcher"
+            style="display: flex; background: rgba(255,255,255,0.05); padding: 4px; border-radius: 12px; border: 1px solid var(--border);">
+            <a href="/friends" class="mode-btn active"
+                style="padding: 8px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: var(--accent-green); color: black; border: none; text-decoration: none;">Friends</a>
+            <a href="/group" class="mode-btn"
+                style="padding: 8px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s; background: transparent; color: var(--text-secondary); border: none; text-decoration: none;">Group</a>
+        </div>
+    </div>
+</div>
+<p class="text-muted" style="margin-top: -16px; margin-bottom: 24px;">Connect with other students to stay motivated.</p>
+
+<div class="card" style="margin-bottom: 24px;">
+    <div style="display: flex; gap: 16px; align-items: center;">
+        <div style="flex: 1; position: relative;">
+            <i class="fa-solid fa-search"
+                style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-secondary);"></i>
+            <input type="text" id="user-search" placeholder="Search students by name or email..."
+                style="width: 100%; padding: 12px 12px 12px 40px; background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 8px; color: white;">
+        </div>
+    </div>
+    <div id="search-results" style="margin-top: 16px; display: none;">
+        <h3 style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 12px;">Search Results</h3>
+        <div id="results-list" style="display: flex; flex-direction: column; gap: 12px;"></div>
+    </div>
+</div>
+
+<div class="grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+    <!-- Friend Requests -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-user-plus"></i> Friend Requests</div>
+            {% if friend_requests %}
+            <span class="badge" style="background: var(--accent-green); color: black;">{{ friend_requests|length
+                }}</span>
+            {% endif %}
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% if friend_requests %}
+            {% for req in friend_requests %}
+            <div class="friend-item" id="req-{{ req.request_id }}"
+                style="display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px;">
+                <img src="{{ req.avatar }}" style="width: 40px; height: 40px; border-radius: 50%;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600;">{{ req.name }}</div>
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Lvl {{ req.level }} • {{ req.rank.name
+                        }}</div>
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="respondRequest({{ req.request_id }}, 'accept')" class="btn-icon"
+                        style="color: var(--accent-green); background: rgba(74, 222, 128, 0.1);"><i
+                            class="fa-solid fa-check"></i></button>
+                    <button onclick="respondRequest({{ req.request_id }}, 'reject')" class="btn-icon"
+                        style="color: var(--destructive); background: rgba(239, 68, 68, 0.1);"><i
+                            class="fa-solid fa-xmark"></i></button>
+                </div>
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                No pending requests.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- My Friends -->
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title"><i class="fa-solid fa-users"></i> My Friends</div>
+            <span class="text-muted">{{ my_friends|length }}</span>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 16px;">
+            {% if my_friends %}
+            {% for friend in my_friends %}
+            <div
+                style="display: flex; align-items: center; gap: 12px; padding: 12px; border-bottom: 1px solid var(--border);">
+                <img src="{{ friend.avatar }}" style="width: 40px; height: 40px; border-radius: 50%;">
+                <div style="flex: 1;">
+                    <div style="font-weight: 600;">
+                        <a href="{{ url_for('profile', user_id=friend.id) }}"
+                            style="color: white; text-decoration: none;">{{ friend.name }}</a>
+                    </div>
+                    {% if friend.is_public %}
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">{{ friend.rank.name }}</div>
+                    {% else %}
+                    <div style="font-size: 0.8rem; color: var(--text-secondary);">Private Profile</div>
+                    {% endif %}
+                </div>
+                {% if friend.is_public %}
+                <div style="font-size: 0.9rem; font-weight: 600; color: {{ friend.rank.color }};">
+                    Lvl {{ friend.level }}
+                </div>
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="text-align: center; padding: 20px; color: var(--text-secondary);">
+                You haven't added any friends yet. Use the search bar to find people!
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelector('[data-nav="group"]').classList.add('active'); // Highlight Friends/Group nav
+
+    // Search Logic
+    const searchInput = document.getElementById('user-search');
+    const resultsContainer = document.getElementById('search-results');
+    const resultsList = document.getElementById('results-list');
+
+    let debounceTimer;
+
+    searchInput.addEventListener('input', (e) => {
+        clearTimeout(debounceTimer);
+        const query = e.target.value.trim();
+
+        if (query.length < 2) {
+            resultsContainer.style.display = 'none';
+            return;
+        }
+
+        debounceTimer = setTimeout(() => {
+            fetch(`/api/users/search?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(users => {
+                    resultsList.innerHTML = '';
+                    if (users.length > 0) {
+                        resultsContainer.style.display = 'block';
+                        users.forEach(user => {
+                            const div = document.createElement('div');
+                            div.className = 'friend-item';
+                            div.style = 'display: flex; align-items: center; gap: 12px; padding: 12px; background: rgba(255,255,255,0.03); border-radius: 8px;';
+
+                            let actionBtn = '';
+                            if (user.status === 'none') {
+                                actionBtn = `<button onclick="sendRequest(${user.id}, this)" class="btn-sm" style="background: var(--accent-green); color: black; padding: 4px 12px; border-radius: 4px; border:none; cursor: pointer;">Add</button>`;
+                            } else if (user.status === 'pending') {
+                                actionBtn = `<span class="text-muted" style="font-size: 0.8rem;">Pending</span>`;
+                            } else if (user.status === 'sent') {
+                                actionBtn = `<span class="text-muted" style="font-size: 0.8rem;">Sent</span>`;
+                            } else if (user.status === 'received') {
+                                actionBtn = `<span class="text-muted" style="font-size: 0.8rem;">Check Requests</span>`;
+                            } else if (user.status === 'accepted') {
+                                actionBtn = `<span style="color: var(--accent-green); font-size: 0.8rem;"><i class="fa-solid fa-check"></i> Friends</span>`;
+                            }
+
+                            div.innerHTML = `
+                                <a href="/profile/${user.id}" style="display: flex; align-items: center; gap: 12px; flex: 1; text-decoration: none; color: inherit;">
+                                    <img src="${user.avatar}" style="width: 32px; height: 32px; border-radius: 50%;">
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 500;">${user.name}</div>
+                                        <div style="font-size: 0.75rem; color: var(--text-secondary);">${user.email}</div>
+                                    </div>
+                                </a>
+                                ${actionBtn}
+                            `;
+                            resultsList.appendChild(div);
+                        });
+                    } else {
+                        resultsContainer.style.display = 'block';
+                        resultsList.innerHTML = '<div style="color: var(--text-secondary); padding: 8px;">No users found.</div>';
+                    }
+                });
+        }, 300);
+    });
+
+    function sendRequest(userId, btn) {
+        fetch(`/friends/request/${userId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    btn.outerHTML = '<span class="text-muted" style="font-size: 0.8rem;">Sent</span>';
+                } else {
+                    alert(data.error || 'Failed to send request');
+                }
+            });
+    }
+
+    function respondRequest(reqId, action) {
+        fetch(`/friends/${action}/${reqId}`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    document.getElementById(`req-${reqId}`).remove();
+                    // Ideally reload to update "My Friends" list, or manipulate DOM
+                    if (action === 'accept') {
+                        location.reload();
+                    }
+                }
+            });
+    }
+</script>
+<style>
+    .btn-icon {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        border: none;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        transition: transform 0.2s;
+    }
+
+    .btn-icon:hover {
+        transform: scale(1.1);
+    }
+</style>
+{% endblock %}

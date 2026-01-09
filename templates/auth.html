@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - StudyVerse</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: #111;
+            background-image: url('https://images.unsplash.com/photo-1451187580459-43490279c0fa?q=80&w=2072&auto=format&fit=crop');
+            background-size: cover;
+            background-position: center;
+        }
+        
+        .overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            backdrop-filter: blur(8px);
+        }
+
+        .login-container {
+            width: 100%;
+            max-width: 420px;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+
+        .login-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 40px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        .login-logo {
+            font-size: 3rem;
+            color: var(--accent-green);
+            margin-bottom: 16px;
+        }
+
+        .login-title {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: white;
+        }
+
+        .login-subtitle {
+            color: var(--text-secondary);
+            margin-bottom: 32px;
+            font-size: 0.95rem;
+        }
+
+        .btn-google {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            width: 100%;
+            background: white;
+            color: #1f2937;
+            padding: 12px;
+            border-radius: 12px;
+            border: none;
+            font-weight: 600;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-google:hover {
+            background: #f9fafb;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .divider {
+            margin: 24px 0;
+            display: flex;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: "";
+            flex: 1;
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .divider span {
+            padding: 0 10px;
+        }
+        
+        /* Tab Overrides for Auth */
+        .auth-tabs {
+            display: flex;
+            gap: 10px;
+            background: rgba(0,0,0,0.2);
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        
+        .auth-tab {
+            flex: 1;
+            padding: 8px;
+            border-radius: 8px;
+            background: transparent;
+            color: var(--text-secondary);
+            border: none;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .auth-tab.active {
+            background: var(--accent-green);
+            color: black;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="overlay"></div>
+
+    <div class="login-container">
+        <div class="login-card">
+            <div class="login-logo">
+                <i class="fa-solid fa-graduation-cap"></i>
+            </div>
+            <h1 class="login-title">StudyVerse</h1>
+            <p class="login-subtitle">Your AI-Powered Study Companion</p>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div style="margin-bottom: 20px; text-align: left;">
+                        {% for category, message in messages %}
+                            <div style="padding: 10px; border-radius: 8px; background: rgba(239, 68, 68, 0.2); color: #fca5a5; font-size: 0.9rem; border: 1px solid rgba(239, 68, 68, 0.3);">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-signin">Sign In</button>
+                <button class="auth-tab" id="tab-signup">Sign Up</button>
+            </div>
+
+            <!-- Sign In Form -->
+            <form id="form-signin" method="POST" action="{{ url_for('signin') }}" style="display: flex; flex-direction: column; gap: 16px;">
+                <input type="email" name="email" placeholder="Email address" required
+                    style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: white; outline: none;">
+                <input type="password" name="password" placeholder="Password" required
+                    style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: white; outline: none;">
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; background: var(--accent-green); color: black; font-weight: 600; border-radius: 12px;">Sign In</button>
+            </form>
+
+            <!-- Sign Up Form -->
+            <form id="form-signup" method="POST" action="{{ url_for('signup') }}" style="display: none; flex-direction: column; gap: 16px;">
+                <div style="display: flex; gap: 10px;">
+                    <input type="text" name="first_name" placeholder="First Name" required
+                        style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: white; outline: none;">
+                    <input type="text" name="last_name" placeholder="Last Name" required
+                        style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: white; outline: none;">
+                </div>
+                <input type="email" name="email" placeholder="Email address" required
+                    style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: white; outline: none;">
+                <input type="password" name="password" placeholder="Password" required
+                    style="width: 100%; background: rgba(0,0,0,0.2); border: 1px solid var(--border); padding: 12px; border-radius: 12px; color: white; outline: none;">
+                <button type="submit" class="btn-primary" style="width: 100%; padding: 12px; background: var(--accent-green); color: black; font-weight: 600; border-radius: 12px;">Create Account</button>
+            </form>
+
+            <div class="divider">
+                <span>OR</span>
+            </div>
+
+            <a href="{{ url_for('login_google') }}" class="btn-google" style="text-decoration: none;">
+                <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="Google" style="width: 20px; height: 20px;">
+                Continue with Google
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const tabSignin = document.getElementById('tab-signin');
+        const tabSignup = document.getElementById('tab-signup');
+        const formSignin = document.getElementById('form-signin');
+        const formSignup = document.getElementById('form-signup');
+
+        tabSignin.addEventListener('click', () => {
+            tabSignin.classList.add('active');
+            tabSignup.classList.remove('active');
+            formSignin.style.display = 'flex';
+            formSignup.style.display = 'none';
+        });
+
+        tabSignup.addEventListener('click', () => {
+            tabSignup.classList.add('active');
+            tabSignin.classList.remove('active');
+            formSignup.style.display = 'flex';
+            formSignin.style.display = 'none';
+        });
+    </script>
+</body>
+</html>

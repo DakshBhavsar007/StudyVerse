@@ -1,0 +1,346 @@
+{% extends "layout.html" %}
+
+{% block title %}Settings - StudyVerse{% endblock %}
+
+{% block content %}
+<!-- Profile Hero -->
+<div class="profile-hero">
+    <div class="profile-cover"></div>
+    <div class="profile-avatar-wrapper">
+        <img id="profile-avatar" src="{{ current_user.get_avatar(200) }}" class="profile-avatar-main">
+        <div class="profile-info-brief">
+            <h2 id="profile-name">{{ current_user.first_name }} {{ current_user.last_name }}</h2>
+            <p id="profile-major">{{ current_user.email }}</p>
+        </div>
+    </div>
+    <div class="profile-actions">
+        <button class="btn-primary" style="background: var(--accent-green); color: black;"
+            onclick="openTab('settings', document.querySelector('[data-tab-btn=\'settings\']'))">
+            <i class="fa-solid fa-pen"></i> Edit Profile
+        </button>
+    </div>
+</div>
+
+<!-- Stats Row -->
+<div class="stats-row">
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(74, 222, 128, 0.1); color: var(--accent-green);">
+            <i class="fa-solid fa-bolt"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-level">12</div>
+            <div class="stat-label">Current Level</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(59, 130, 246, 0.1); color: #3b82f6;">
+            <i class="fa-solid fa-clock"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-hours">342h</div>
+            <div class="stat-label">Focus Time</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(239, 68, 68, 0.1); color: #ef4444;">
+            <i class="fa-solid fa-fire"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-streak">8</div>
+            <div class="stat-label">Day Streak</div>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b;">
+            <i class="fa-solid fa-star"></i>
+        </div>
+        <div class="stat-info">
+            <div class="stat-value" id="stat-xp">2,450</div>
+            <div class="stat-label">Total XP</div>
+        </div>
+    </div>
+</div>
+
+<div class="profile-grid-main">
+    <!-- Left: Content Area -->
+    <div class="card" style="padding: 32px;">
+        <div class="tab-nav">
+            <div class="tab-link active" onclick="openTab('overview', this)">Overview</div>
+            <div class="tab-link" onclick="openTab('activity', this)">Recent Activity</div>
+            <div class="tab-link" data-tab-btn="settings" onclick="openTab('settings', this)">Settings</div>
+        </div>
+
+        <div id="tab-content">
+            <!-- Overview Tab -->
+            <div id="overview-tab" class="tab-pane">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 32px;">
+                    <div>
+                        <h3 style="margin-bottom: 20px; font-size: 1.1rem; font-weight: 600;">Badges & Achievements</h3>
+                        <div style="display: flex; flex-direction: column; gap: 12px;">
+                            <div class="badge-item">
+                                <div class="badge-icon"><i class="fa-solid fa-award"></i></div>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">Early Bird</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Start 5 focus
+                                        sessions before 8 AM</div>
+                                </div>
+                            </div>
+                            <div class="badge-item">
+                                <div class="badge-icon" style="color: #3b82f6; background: rgba(59, 130, 246, 0.1);"><i
+                                        class="fa-solid fa-brain"></i></div>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">Deep Thinker</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Complete a 2-hour
+                                        focus session</div>
+                                </div>
+                            </div>
+                            <div class="badge-item">
+                                <div class="badge-icon" style="color: #f59e0b; background: rgba(245, 158, 11, 0.1);"><i
+                                        class="fa-solid fa-shield-halved"></i></div>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 0.9rem;">Focus Warrior</div>
+                                    <div style="font-size: 0.75rem; color: var(--text-secondary);">Maintain a 7-day
+                                        streak</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="margin-bottom: 20px; font-size: 1.1rem; font-weight: 600;">About Me</h3>
+                        <p
+                            style="color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; margin-bottom: 20px;">
+                            Computer Science student at University. Passionate about algorithms, UI/UX design, and
+                            productivity hacks. Currently focusing on mastering Python and React.
+                        </p>
+                        <div style="display: flex; gap: 10px;">
+                            <span class="badge badge-low"
+                                style="background: rgba(255,255,255,0.05); color: white;">#coding</span>
+                            <span class="badge badge-low"
+                                style="background: rgba(255,255,255,0.05); color: white;">#algorithms</span>
+                            <span class="badge badge-low"
+                                style="background: rgba(255,255,255,0.05); color: white;">#focus</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Activity Tab (Hidden by default) -->
+            <div id="activity-tab" class="tab-pane" style="display: none;">
+                <div class="notification-list">
+                    <div style="padding: 16px 0; border-bottom: 1px solid var(--border); display: flex; gap: 16px;">
+                        <div
+                            style="width: 40px; height: 40px; background: rgba(74, 222, 128, 0.1); color: var(--accent-green); border-radius: 50%; display: grid; place-items: center;">
+                            <i class="fa-solid fa-trophy"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.95rem;"><strong>You leveled up!</strong> You are now Level 12. Keep
+                                focusing!</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">2 hours ago
+                            </div>
+                        </div>
+                    </div>
+                    <div style="padding: 16px 0; border-bottom: 1px solid var(--border); display: flex; gap: 16px;">
+                        <div
+                            style="width: 40px; height: 40px; background: rgba(59, 130, 246, 0.1); color: #3b82f6; border-radius: 50%; display: grid; place-items: center;">
+                            <i class="fa-solid fa-clock"></i>
+                        </div>
+                        <div>
+                            <div style="font-size: 0.95rem;">Completed <strong>Python Learning</strong> focus session
+                                (50 mins).</div>
+                            <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 4px;">4 hours ago
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab (Hidden by default) -->
+            <div id="settings-tab" class="tab-pane" style="display: none;">
+                <div class="settings-group">
+                    <h3>Profile Information</h3>
+                    <div class="grid grid-cols-2 gap-6"
+                        style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 32px;">
+                        <div>
+                            <label class="label" for="firstName"
+                                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">First
+                                Name</label>
+                            <input class="input" type="text" id="firstName" value="{{ current_user.first_name or '' }}"
+                                style="width: 100%; padding: 10px; background: #1e1e1e; border: 1px solid var(--border); border-radius: 6px; color: white;">
+                        </div>
+                        <div>
+                            <label class="label" for="lastName"
+                                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">Last
+                                Name</label>
+                            <input class="input" type="text" id="lastName" value="{{ current_user.last_name or '' }}"
+                                style="width: 100%; padding: 10px; background: #1e1e1e; border: 1px solid var(--border); border-radius: 6px; color: white;">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label class="label" for="email"
+                                style="display: block; margin-bottom: 8px; color: var(--text-secondary); font-size: 0.9rem;">Email</label>
+                            <input class="input" type="email" id="email" value="{{ current_user.email }}" disabled
+                                style="width: 100%; padding: 10px; background: #1e1e1e; border: 1px solid var(--border); border-radius: 6px; color: white; opacity: 0.7;">
+                        </div>
+                    </div>
+
+                    <button class="btn-primary"
+                        style="background: var(--accent-green); color: black; margin-bottom: 32px;">
+                        Save Changes
+                    </button>
+
+                    <div style="border-top: 1px solid var(--border); margin: 24px 0;"></div>
+
+                    <h3>Account Preferences</h3>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Email Notifications</h4>
+                            <p>Receive weekly progress reports and deadline reminders.</p>
+                        </div>
+                        <input type="checkbox" checked
+                            style="width: 20px; height: 20px; accent-color: var(--accent-green);">
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Public Profile</h4>
+                            <div style="font-size: 0.85rem; color: var(--text-secondary);">Allow friends to see your
+                                focus stats and leaderboard rank.</div>
+                        </div>
+                        <input type="checkbox" id="publicProfileToggle" {% if current_user.is_public_profile %}checked{%
+                            endif %} style="width: 20px; height: 20px; accent-color: var(--accent-green);">
+                    </div>
+                    <div class="setting-row">
+                        <div class="setting-info">
+                            <h4>Dark Mode</h4>
+                            <p>Toggle between light and dark visual themes.</p>
+                        </div>
+                        <div style="color: var(--accent-green); font-weight: 600;">Always On</div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 40px; display: flex; flex-direction: column; gap: 16px;">
+                    <div style="border-top: 1px solid var(--border); padding-top: 24px;">
+                        <h3 style="color: #ef4444; margin-bottom: 16px;">Danger Zone</h3>
+                        <a href="{{ url_for('logout') }}" class="btn"
+                            style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); width: fit-content; padding: 10px 24px; border-radius: 12px; font-weight: 600; text-decoration: none; transition: all 0.2s;">
+                            <i class="fa-solid fa-right-from-bracket"></i> Logout
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right: Timeline/Friends -->
+    <div style="display: flex; flex-direction: column; gap: 24px;">
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: white; font-family: var(--font-body); font-weight: 600;">Upcoming
+                    Deadlines</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; gap: 12px; align-items: start;">
+                    <div
+                        style="background: rgba(239, 68, 68, 0.1); color: var(--danger); padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 50px;">
+                        <div style="font-weight: 700;">20</div>
+                        <div style="font-size: 0.7rem;">MAY</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600;">Calculus Midterm</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Preparation Session</div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 12px; align-items: start;">
+                    <div
+                        style="background: rgba(245, 158, 11, 0.1); color: var(--warning); padding: 8px 12px; border-radius: 8px; text-align: center; min-width: 50px;">
+                        <div style="font-weight: 700;">25</div>
+                        <div style="font-size: 0.7rem;">MAY</div>
+                    </div>
+                    <div>
+                        <div style="font-weight: 600;">History Essay</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">Final Submission</div>
+                    </div>
+                </div>
+            </div>
+            <button class="btn-primary"
+                style="margin-top: 20px; width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-secondary);">View
+                Calendar</button>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title" style="color: white; font-family: var(--font-body); font-weight: 600;">Focus
+                    Buddies</div>
+            </div>
+            <div style="display: flex; flex-direction: column; gap: 12px;">
+                {% if focus_buddies %}
+                {% for buddy in focus_buddies %}
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <div style="position: relative;">
+                        <img src="{{ buddy.avatar }}" style="width: 32px; height: 32px; border-radius: 50%;">
+                        {% if buddy.is_online %}
+                        <div
+                            style="position: absolute; bottom: 0; right: 0; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; border: 1px solid #000;">
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            {{ buddy.name }}</div>
+                        {% if buddy.is_public and buddy.rank %}
+                        <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                            {{ buddy.rank.name }} • Lvl {{ buddy.stats.level }}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div style="color: var(--text-secondary); font-size: 0.9rem;">
+                    No friends yet.
+                </div>
+                {% endif %}
+            </div>
+            <a href="/friends" class="btn-primary"
+                style="margin-top: 20px; width: 100%; background: transparent; border: 1px solid var(--border); color: var(--text-secondary); text-align: center; text-decoration: none; display: block;">Find
+                Friends</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.querySelector('[data-nav="settings"]').classList.add('active');
+
+    function openTab(tabName, btn) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-pane').forEach(el => el.style.display = 'none');
+        // Deactivate all buttons
+        document.querySelectorAll('.tab-link').forEach(el => el.classList.remove('active'));
+
+        // Show target tab
+        document.getElementById(tabName + '-tab').style.display = 'block';
+        // Activate button
+        btn.classList.add('active');
+    }
+
+    // Public Profile Toggle
+    const publicProfileToggle = document.getElementById('publicProfileToggle');
+    if (publicProfileToggle) {
+        publicProfileToggle.addEventListener('change', (e) => {
+            fetch('/settings/public-profile', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ is_public: e.target.checked })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.status !== 'success') {
+                        alert('Failed to update setting');
+                        e.target.checked = !e.target.checked;
+                    }
+                });
+        });
+    }
+</script>
+{% endblock %}

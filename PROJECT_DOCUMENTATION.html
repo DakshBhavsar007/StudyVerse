@@ -1,0 +1,694 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>StudyVerse - Technical Documentation</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&family=Fira+Code:wght@400;500&display=swap');
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: #0a0a0a;
+            color: #e0e0e0;
+            overflow-x: hidden;
+            line-height: 1.6;
+        }
+
+        /* Animated Background */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: linear-gradient(120deg, #0a0a0a 0%, #1a1a2e 50%, #16213e 100%);
+            animation: gradientShift 15s ease infinite;
+        }
+
+        @keyframes gradientShift {
+
+            0%,
+            100% {
+                background-position: 0% 50%;
+            }
+
+            50% {
+                background-position: 100% 50%;
+            }
+        }
+
+        /* Floating Particles */
+        .particle {
+            position: fixed;
+            width: 4px;
+            height: 4px;
+            background: rgba(59, 130, 246, 0.5);
+            border-radius: 50%;
+            animation: float 20s infinite;
+            z-index: -1;
+        }
+
+        @keyframes float {
+
+            0%,
+            100% {
+                transform: translateY(0) translateX(0);
+                opacity: 0;
+            }
+
+            10% {
+                opacity: 1;
+            }
+
+            90% {
+                opacity: 1;
+            }
+
+            100% {
+                transform: translateY(-100vh) translateX(100px);
+                opacity: 0;
+            }
+        }
+
+        /* Container */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Header */
+        .header {
+            text-align: center;
+            padding: 80px 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            animation: pulse 4s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                transform: scale(1);
+                opacity: 0.5;
+            }
+
+            50% {
+                transform: scale(1.1);
+                opacity: 0.8;
+            }
+        }
+
+        h1 {
+            font-size: 4.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            animation: slideDown 0.8s ease-out;
+            position: relative;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-50px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #a0aec0;
+            animation: fadeIn 1s ease-out 0.3s backwards;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+
+        /* Glass Cards */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 30px;
+            margin: 30px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            transition: all 0.3s ease;
+            animation: slideUp 0.6s ease-out backwards;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 48px rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.3);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            color: #3b82f6;
+            margin-bottom: 1.5rem;
+            position: relative;
+            display: inline-block;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 0;
+            width: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.4s ease;
+        }
+
+        h2:hover::after {
+            width: 100%;
+        }
+
+        h3 {
+            font-size: 1.8rem;
+            color: #60a5fa;
+            margin: 2rem 0 1rem;
+        }
+
+        /* Feature Grid */
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 25px;
+            margin: 2rem 0;
+        }
+
+        .feature-card {
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            border: 1px solid rgba(102, 126, 234, 0.3);
+            border-radius: 15px;
+            padding: 25px;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(102, 126, 234, 0.1) 0%, transparent 70%);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+            animation: rotate 3s linear infinite;
+        }
+
+        @keyframes rotate {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .feature-card:hover {
+            transform: scale(1.05);
+            box-shadow: 0 15px 50px rgba(102, 126, 234, 0.3);
+        }
+
+        .icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            display: block;
+            animation: bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes bounce {
+
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
+        }
+
+        /* CS Concepts Badge */
+        .concept-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin: 5px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            transition: transform 0.3s ease;
+            cursor: pointer;
+        }
+
+        .concept-badge:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        /* Code Block */
+        pre {
+            background: rgba(30, 41, 59, 0.8);
+            border-left: 4px solid #3b82f6;
+            border-radius: 10px;
+            padding: 20px;
+            overflow-x: auto;
+            margin: 1.5rem 0;
+            position: relative;
+        }
+
+        code {
+            font-family: 'Fira Code', monospace;
+            color: #a78bfa;
+        }
+
+        /* Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 2rem 0;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        th {
+            background: rgba(59, 130, 246, 0.2);
+            padding: 15px;
+            text-align: left;
+            color: #60a5fa;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        tr:hover {
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        /* Scroll Animation */
+        .scroll-reveal {
+            opacity: 0;
+            transform: translateY(50px);
+            transition: all 0.8s ease;
+        }
+
+        .scroll-reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Glow Effect */
+        .glow {
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+
+            0%,
+            100% {
+                box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+            }
+
+            50% {
+                box-shadow: 0 0 40px rgba(102, 126, 234, 0.8);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="bg-animation"></div>
+
+    <!-- Floating Particles -->
+    <script>
+        for (let i = 0; i < 20; i++) {
+            let particle = document.createElement('div');
+            particle.className = 'particle';
+            particle.style.left = Math.random() * 100 + '%';
+            particle.style.animationDelay = Math.random() * 20 + 's';
+            particle.style.animationDuration = (15 + Math.random() * 10) + 's';
+            document.body.appendChild(particle);
+        }
+    </script>
+
+    <div class="container">
+        <div class="header">
+            <h1>📚 StudyVerse</h1>
+            <p class="subtitle">AI-Powered Student Productivity Platform</p>
+        </div>
+
+        <div class="glass-card glow" style="animation-delay: 0.2s">
+            <h2>🎯 Computer Science Concepts Used</h2>
+
+            <h3>🐍 Python Programming</h3>
+            <div>
+                <span class="concept-badge">Object-Oriented Programming (OOP)</span>
+                <span class="concept-badge">Classes & Objects</span>
+                <span class="concept-badge">Inheritance</span>
+                <span class="concept-badge">Decorators (@app.route)</span>
+                <span class="concept-badge">List Comprehensions</span>
+                <span class="concept-badge">Lambda Functions</span>
+                <span class="concept-badge">Exception Handling</span>
+                <span class="concept-badge">Context Managers</span>
+            </div>
+
+            <h3>🎨 Frontend (HTML/CSS/JS)</h3>
+            <div>
+                <span class="concept-badge">DOM Manipulation</span>
+                <span class="concept-badge">Event Listeners</span>
+                <span class="concept-badge">Fetch API / AJAX</span>
+                <span class="concept-badge">WebSocket Client</span>
+                <span class="concept-badge">CSS Grid & Flexbox</span>
+                <span class="concept-badge">CSS Animations</span>
+                <span class="concept-badge">Responsive Design</span>
+                <span class="concept-badge">Local Storage</span>
+            </div>
+
+            <h3>🌐 Flask Framework</h3>
+            <div>
+                <span class="concept-badge">MVC Architecture</span>
+                <span class="concept-badge">RESTful Routing</span>
+                <span class="concept-badge">Session Management</span>
+                <span class="concept-badge">Template Rendering (Jinja2)</span>
+                <span class="concept-badge">Middleware</span>
+                <span class="concept-badge">Flask-SocketIO (WebSocket)</span>
+                <span class="concept-badge">Flask-Login (Auth)</span>
+            </div>
+
+            <h3>💾 DBMS Concepts</h3>
+            <div>
+                <span class="concept-badge">Relational Database (PostgreSQL)</span>
+                <span class="concept-badge">SQL Queries</span>
+                <span class="concept-badge">ORM (SQLAlchemy)</span>
+                <span class="concept-badge">Primary & Foreign Keys</span>
+                <span class="concept-badge">One-to-Many Relationships</span>
+                <span class="concept-badge">Many-to-Many Relationships</span>
+                <span class="concept-badge">Database Indexing</span>
+                <span class="concept-badge">Transactions (ACID)</span>
+                <span class="concept-badge">Database Migrations</span>
+            </div>
+
+            <h3>📊 Data Structures</h3>
+            <div>
+                <span class="concept-badge">Stack (LIFO - Undo System)</span>
+                <span class="concept-badge">LRU Cache (HashMap + LinkedList)</span>
+                <span class="concept-badge">Hash Tables (dict)</span>
+                <span class="concept-badge">Arrays/Lists</span>
+                <span class="concept-badge">Sets</span>
+                <span class="concept-badge">Queues (Message Queue)</span>
+            </div>
+
+            <h3>🔧 Algorithms</h3>
+            <div>
+                <span class="concept-badge">Sorting (ORDER BY)</span>
+                <span class="concept-badge">Searching</span>
+                <span class="concept-badge">XP Calculation Algorithm</span>
+                <span class="concept-badge">Streak Detection</span>
+                <span class="concept-badge">Badge Award Logic</span>
+            </div>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 0.4s">
+            <h2>✨ Core Features</h2>
+            <div class="feature-grid">
+                <div class="feature-card">
+                    <span class="icon">🤖</span>
+                    <h4>AI Study Coach</h4>
+                    <p>Google Gemini 2.5 Flash integration with context-aware responses</p>
+                </div>
+                <div class="feature-card">
+                    <span class="icon">📋</span>
+                    <h4>Smart Task Manager</h4>
+                    <p>AI-powered PDF extraction using PyPDF2 + Gemini</p>
+                </div>
+                <div class="feature-card">
+                    <span class="icon">⚔️</span>
+                    <h4>Byte Battle</h4>
+                    <p>Real-time WebSocket coding arena with AI referee</p>
+                </div>
+                <div class="feature-card">
+                    <span class="icon">📊</span>
+                    <h4>Analytics</h4>
+                    <p>Chart.js visualizations with habit matrix</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 0.6s">
+            <h2>🏗️ System Architecture</h2>
+            <pre><code>Client (Browser)
+    ↓ HTTP/WebSocket
+Flask Server (Python)
+    ↓ ORM (SQLAlchemy)
+PostgreSQL Database
+    
+AI Integration:
+    → Google Gemini API (REST)
+    → JSON Response Parsing
+    
+Real-time:
+    → Flask-SocketIO
+    → Room-based Communication</code></pre>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 0.8s">
+            <h2>💻 Tech Stack</h2>
+            <table>
+                <tr>
+                    <th>Category</th>
+                    <th>Technology</th>
+                    <th>Concepts Applied</th>
+                </tr>
+                <tr>
+                    <td><strong>Backend</strong></td>
+                    <td>Flask 3.0.0</td>
+                    <td>MVC, Routing, Middleware</td>
+                </tr>
+                <tr>
+                    <td><strong>Database</strong></td>
+                    <td>PostgreSQL + SQLAlchemy</td>
+                    <td>ORM, Relationships, Indexing</td>
+                </tr>
+                <tr>
+                    <td><strong>Real-time</strong></td>
+                    <td>Flask-SocketIO</td>
+                    <td>WebSocket, Event-driven</td>
+                </tr>
+                <tr>
+                    <td><strong>AI</strong></td>
+                    <td>Google Gemini 2.5</td>
+                    <td>API Integration, JSON Parsing</td>
+                </tr>
+                <tr>
+                    <td><strong>Auth</strong></td>
+                    <td>Flask-Login + OAuth</td>
+                    <td>Session Management, OAuth 2.0</td>
+                </tr>
+                <tr>
+                    <td><strong>Frontend</strong></td>
+                    <td>HTML5, CSS3, Vanilla JS</td>
+                    <td>DOM, Events, Fetch API</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 1s">
+            <h2>🎮 Gamification System</h2>
+            <h3>Data Structures in Action</h3>
+            <pre><code>class LRUCache:
+    """HashMap + Doubly LinkedList"""
+    - get(): O(1) average
+    - put(): O(1) average
+    - Used for caching AI responses
+
+class Stack:
+    """LIFO implementation"""
+    - push(): O(1)
+    - pop(): O(1)
+    - Used for undo delete functionality</code></pre>
+
+            <h3>XP Algorithm</h3>
+            <pre><code>Level = floor(total_xp / 500) + 1
+Rank = getRank(Level) → Lookup in HashMap
+
+Badge Logic:
+    IF streak >= 30 THEN award "Consistency King"
+    IF level >= 100 THEN award "Centurion"</code></pre>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 1.2s">
+            <h2>📊 Database Schema</h2>
+            <h3>11 Relational Tables</h3>
+            <table>
+                <tr>
+                    <th>Table</th>
+                    <th>Relationship</th>
+                    <th>DBMS Concept</th>
+                </tr>
+                <tr>
+                    <td>User → Todos</td>
+                    <td>One-to-Many</td>
+                    <td>Foreign Key Constraint</td>
+                </tr>
+                <tr>
+                    <td>User → Badges</td>
+                    <td>Many-to-Many</td>
+                    <td>Junction Table (UserBadge)</td>
+                </tr>
+                <tr>
+                    <td>Group → Members</td>
+                    <td>One-to-Many</td>
+                    <td>Indexed Foreign Key</td>
+                </tr>
+            </table>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 1.4s">
+            <h2>🚀 Key Implementation Highlights</h2>
+
+            <h3>1. WebSocket Implementation (Real-time Battle)</h3>
+            <pre><code>@socketio.on('battle_create')
+def on_battle_create(data):
+    room_code = generate_room_code()
+    battles[room_code] = {
+        'host': current_user.id,
+        'players': {},
+        'state': 'waiting'
+    }
+    join_room(room_code)
+    emit('battle_created', {'room_code': room_code})</code></pre>
+
+            <h3>2. ORM Query Optimization</h3>
+            <pre><code># Relationship Loading
+todos = Todo.query.filter_by(user_id=user.id)\
+    .order_by(Todo.created_at.desc())\
+    .limit(10).all()
+
+# Join Query
+top_users = db.session.query(User, db.func.count(Badge.id))\
+    .join(UserBadge)\
+    .group_by(User.id)\
+    .order_by(db.func.count(Badge.id).desc())</code></pre>
+
+            <h3>3. AI Context Building</h3>
+            <pre><code>def build_system_prompt(user, syllabus):
+    history = ChatMessage.query.filter_by(user_id=user.id)\
+        .order_by(ChatMessage.created_at.desc())\
+        .limit(10).all()
+    
+    context = f"""System: AI Study Coach
+    Syllabus: {syllabus[:3000]}
+    History: {format_history(history)}"""
+    
+    return context</code></pre>
+        </div>
+
+        <div class="glass-card scroll-reveal" style="animation-delay: 1.6s">
+            <h2>📈 Performance Optimizations</h2>
+            <ul style="list-style: none;">
+                <li>✅ <strong>Database Indexing</strong> on foreign keys</li>
+                <li>✅ <strong>LRU Cache</strong> for AI responses</li>
+                <li>✅ <strong>Lazy Loading</strong> with SQLAlchemy</li>
+                <li>✅ <strong>WebSocket</strong> instead of polling</li>
+                <li>✅ <strong>Session Persistence</strong> with cookies</li>
+                <li>✅ <strong>Query Optimization</strong> with joins</li>
+            </ul>
+        </div>
+
+        <footer style="text-align: center; padding: 40px 20px; color: #6b7280; margin-top: 50px;">
+            <p style="font-size: 1.2rem; margin-bottom: 10px;">
+                <strong
+                    style="background: linear-gradient(135deg, #667eea, #764ba2); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">StudyVerse</strong>
+            </p>
+            <p>Full-Stack Web App | Flask + PostgreSQL + Gemini AI</p>
+            <p>CS Concepts: OOP, Data Structures, DBMS, WebSockets, API Integration</p>
+        </footer>
+    </div>
+
+    <script>
+        // Scroll Reveal Animation
+        const reveals = document.querySelectorAll('.scroll-reveal');
+
+        const revealOnScroll = () => {
+            reveals.forEach(element => {
+                const elementTop = element.getBoundingClientRect().top;
+                const windowHeight = window.innerHeight;
+
+                if (elementTop < windowHeight - 100) {
+                    element.classList.add('active');
+                }
+            });
+        };
+
+        window.addEventListener('scroll', revealOnScroll);
+        revealOnScroll(); // Initial check
+    </script>
+</body>
+
+</html>
