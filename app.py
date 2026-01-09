@@ -48,6 +48,11 @@ app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///StudyVerse.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Optimize connection pooling for Render
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+}
 app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
 
 # Google OAuth Config - Use environment variables
@@ -875,6 +880,16 @@ def login_google():
 def google_callback():
     print(f"[GOOGLE AUTH] Callback received")
     print(f"[GOOGLE AUTH] Request args: {request.args}")
+    
+    # Handle error or missing code
+    if 'error' in request.args:
+        flash(f"Google login failed: {request.args.get('error')}", 'error')
+        return redirect(url_for('auth'))
+        
+    if 'code' not in request.args:
+        flash("Google login failed: No authorization code received.", 'error')
+        return redirect(url_for('auth'))
+
     try:
         print(f"[GOOGLE AUTH] Attempting to authorize access token...")
         token = google.authorize_access_token()
