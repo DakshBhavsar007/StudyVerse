@@ -2902,15 +2902,21 @@ def analytics_data():
         }
     })
 
-if __name__ == '__main__':
+
+# ==========================================
+# Database Initialization & Migration (Production Safe)
+# ==========================================
+def init_db():
     from sqlalchemy import text, inspect
     
     with app.app_context():
-        db.create_all()
-        
-        # Auto-migration for schema updates
         try:
+            db.create_all()
+            print("Database tables verified/created.")
+            
+            # Auto-migration for schema updates
             inspector = inspect(db.engine)
+            
             # 1. Check for file_path in group_chat_message
             if 'group_chat_message' in inspector.get_table_names():
                 columns = [c['name'] for c in inspector.get_columns('group_chat_message')]
@@ -2975,5 +2981,9 @@ if __name__ == '__main__':
         except Exception as e:
             print(f"Migration check failed (safe to ignore if new DB): {e}")
 
+# Initialize DB immediately on import so Gunicorn runs it
+init_db()
+
+if __name__ == '__main__':
     # Use socketio.run instead of app.run
     socketio.run(app, debug=True, host='0.0.0.0', port=5000)
