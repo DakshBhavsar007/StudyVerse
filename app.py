@@ -44,7 +44,12 @@ except ImportError:
     GEMINI_AVAILABLE = False
 
 
+from werkzeug.middleware.proxy_fix import ProxyFix
+
 app = Flask(__name__)
+# Fix for Render (and other proxies) to handle HTTPS correctly
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///StudyVerse.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
@@ -70,11 +75,12 @@ google = oauth.register(
 
 # Session Configuration - Fix persistent login issues
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=7)
-app.config['SESSION_COOKIE_SECURE'] = False  # Set to True in production with HTTPS
+# Use secure cookies in production (when https is used)
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('RENDER') is not None
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
-app.config['REMEMBER_COOKIE_SECURE'] = False  # Set to True in production
+app.config['REMEMBER_COOKIE_SECURE'] = os.environ.get('RENDER') is not None
 app.config['REMEMBER_COOKIE_HTTPONLY'] = True
 
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
