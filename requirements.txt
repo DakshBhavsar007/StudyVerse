@@ -17,3 +17,4 @@ pytz==2024.1
 psycopg2-binary
 gunicorn==21.2.0
 eventlet==0.33.3
+psycogreen==1.0
