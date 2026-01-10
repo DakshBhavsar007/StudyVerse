@@ -1953,15 +1953,15 @@ body.sidebar-collapsed .sidebar .nav-item i {
     padding: 10px;
 }
 
-/* Skill Radar Tooltip - Show ? only on Header Hover */
+/* Skill Radar Tooltip - Show ? always but dim */
 .card-header .question-mark {
-    opacity: 0;
+    opacity: 0.6;
     transition: opacity 0.2s ease-in-out;
     position: relative;
     /* Ensure it doesn't shift layout */
 }
 
-/* Show ? when hovering the card header OR the question mark itself */
+/* Brighten when hovering */
 .card-header:hover .question-mark,
 .question-mark:hover {
     opacity: 1;

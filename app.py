@@ -3053,8 +3053,44 @@ def init_db():
         except Exception as e:
             print(f"Migration check failed (safe to ignore if new DB): {e}")
 
-# Initialize DB immediately on import so Gunicorn runs it
+# Optimize connection pooling for Render (High Scalability)
+app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+    'pool_pre_ping': True,
+    'pool_recycle': 300,
+    'pool_size': 20,       # Handle more concurrent users
+    'max_overflow': 10,    # Burst capacity
+}
+app.config['UPLOAD_FOLDER'] = os.path.join('static', 'uploads')
+
+# ... (Previous config lines) ...
+
+# ==========================================
+# Startup Tasks (Background)
+# ==========================================
+def run_startup_tasks():
+    """Runs maintenance tasks without blocking server boot."""
+    with app.app_context():
+        try:
+            # 1. Update XP for Daksh (Requested Feature)
+            time.sleep(2) # Wait for DB to be fully ready
+            users = User.query.filter(User.first_name.like('Daksh%')).all()
+            for user in users:
+                print(f"Startup: Updating XP for {user.first_name}...")
+                user.total_xp += 1000000
+                new_level = GamificationService.calculate_level(user.total_xp)
+                if new_level > user.level:
+                    user.level = new_level
+            if users:
+                db.session.commit()
+                print("Startup: XP Update Complete.")
+        except Exception as e:
+            print(f"Startup Task Error: {e}")
+
+# Initialize DB immediately
 init_db()
+
+# Spawn background startup task
+eventlet.spawn(run_startup_tasks)
 
 if __name__ == '__main__':
     # Use socketio.run instead of app.run
