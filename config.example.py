@@ -1,37 +1,37 @@
 # Configuration Example File
-# Copy this file and rename it to config.py, then add your API keys
+# Copy this file and rename it to config.py (or use .env), then add your API keys
 
 # ============================================
-# AI API CONFIGURATION - PASTE YOUR API KEY HERE
+# Database Configuration
 # ============================================
+# Local PostgreSQL
+# DATABASE_URL = "postgresql://postgres:password@localhost:5432/StudyVerse_Final"
 
-# Option 1: OpenAI
-AI_API_KEY = "sk-your-openai-api-key-here"
-AI_API_TYPE = "openai"
-AI_MODEL = "gpt-4"  # or "gpt-3.5-turbo"
+# ============================================
+# AI API CONFIGURATION
+# ============================================
+# Google Gemini
+AI_API_KEY = "your-google-api-key-here"
+AI_API_TYPE = "google"
+AI_MODEL = "models/gemini-2.5-flash"
 
-# Option 2: Anthropic Claude
-# AI_API_KEY = "sk-ant-your-anthropic-api-key-here"
-# AI_API_TYPE = "anthropic"
-# AI_MODEL = "claude-3-opus-20240229"
+# ============================================
+# Google OAuth Configuration
+# ============================================
+GOOGLE_CLIENT_ID = "your-google-client-id"
+GOOGLE_CLIENT_SECRET = "your-google-client-secret"
 
-# Option 3: Lovable AI Gateway (from original project)
-# AI_API_KEY = "your-lovable-api-key-here"
-# AI_API_TYPE = "lovable"
-# AI_MODEL = "google/gemini-2.5-flash"
-
-# Option 4: Google Gemini
-# AI_API_KEY = "your-google-api-key-here"
-# AI_API_TYPE = "google"
-# AI_MODEL = "gemini-pro"
+# ============================================
+# Email Configuration (SMTP)
+# ============================================
+MAIL_SERVER = "smtp.gmail.com"
+MAIL_PORT = 587
+MAIL_USERNAME = "your-email@gmail.com"
+MAIL_PASSWORD = "your-app-password"
+MAIL_DEFAULT_SENDER = "StudyVerse <your-email@gmail.com>"
 
 # ============================================
 # Flask Configuration
 # ============================================
 SECRET_KEY = "your-secret-key-here-change-this-in-production"
-
-# ============================================
-# Database (SQLite - no configuration needed)
-# ============================================
-# SQLite database will be created automatically as StudyVerse.db
 
