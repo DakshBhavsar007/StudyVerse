@@ -221,7 +221,7 @@
 <!-- Timestamp Utility -->
 <script src="{{ url_for('static', filename='js/timestamp_utils.js') }}"></script>
 
-<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<!-- Socket.IO is in layout.html -->
 <script>
     const GROUP_ID = "{{ group.id if group else '' }}";
     const CURRENT_USER_ID = "{{ current_user.id }}";

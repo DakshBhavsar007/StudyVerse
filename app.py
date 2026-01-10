@@ -1,3 +1,5 @@
+import eventlet
+eventlet.monkey_patch()
 
 from flask import Flask, render_template, request, session, redirect, url_for, Response, flash, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -2080,12 +2082,16 @@ def handle_message(data):
     content = data.get('content', '')
     file_path = data.get('file_path')
     
+    print(f"DEBUG: Message received for Group {group_id} from User {current_user.id}")
+    
     if not group_id or not current_user.is_authenticated:
+        print("DEBUG: Message rejected - missing group_id or auth")
         return
 
     # Check membership
     membership = GroupMember.query.filter_by(group_id=group_id, user_id=current_user.id).first()
     if not membership:
+        print(f"DEBUG: Message rejected - User {current_user.id} not in Group {group_id}")
         return
 
     msg = GroupChatMessage(
@@ -2097,6 +2103,7 @@ def handle_message(data):
     )
     db.session.add(msg)
     db.session.commit()
+    print(f"DEBUG: Message saved ID {msg.id}")
 
     # Convert timestamp to IST
     ist_time = to_ist_time(msg.created_at)
@@ -2189,8 +2196,41 @@ def profile_upload_cover():
 def battle():
     return render_template('battle.html')
 
-# In-memory battle state
+# In-memory battle state (with persistence)
+BATTLES_FILE = 'battles_data.json'
 battles = {}
+
+def load_battles():
+    global battles
+    if os.path.exists(BATTLES_FILE):
+        try:
+            with open(BATTLES_FILE, 'r') as f:
+                battles = json.load(f)
+            # Re-convert timestamps if necessary or just use as is (JSON keys are always strings)
+            # JSON keys for players dict will be strings, but code often expects int for dict lookup
+            # We need to handle this type conversion carefully if IDs are ints.
+            # In existing code: room['players'][current_user.id] implies ID is key.
+            # When loaded from JSON, keys in 'players' dict "123" will be string.
+            # We must fix this structure after loading.
+            for room in battles.values():
+                if 'players' in room:
+                    room['players'] = {int(k) if k.isdigit() else k: v for k, v in room['players'].items()}
+                if 'submissions' in room:
+                    room['submissions'] = {int(k) if k.isdigit() else k: v for k, v in room['submissions'].items()}
+            print(f"Loaded {len(battles)} battles from {BATTLES_FILE}")
+        except Exception as e:
+            print(f"Error loading battles: {e}")
+            battles = {}
+
+def save_battles():
+    try:
+        with open(BATTLES_FILE, 'w') as f:
+            json.dump(battles, f, default=str) # default=str to handle datetime if any
+    except Exception as e:
+        print(f"Error saving battles: {e}")
+
+# Load on startup
+load_battles()
 
 def generate_room_code(length=4):
     import random, string
@@ -2212,7 +2252,7 @@ def on_battle_create(data):
             current_user.id: {
                 'name': current_user.first_name or 'Player 1',
                 'sid': request.sid,
-                'joined_at': datetime.utcnow()
+                'joined_at': datetime.utcnow().isoformat() # improved for JSON serialization
             }
         },
         'state': 'waiting', # waiting, setup, battle, judging, result
@@ -2222,6 +2262,7 @@ def on_battle_create(data):
         'rematch_votes': {}, # player_id: "yes"/"no"
         'pending_join': None # Stores info about player requesting to join
     }
+    save_battles()
     
     join_room(room_code)
     emit('battle_created', {'room_code': room_code, 'player_id': current_user.id})
@@ -2233,6 +2274,8 @@ def on_battle_join_request(data):
         return
         
     room_code = data.get('room_code', '').strip().upper()
+    print(f"DEBUG: Join request for {room_code} by {current_user.first_name} (ID: {current_user.id})")
+    
     if room_code not in battles:
         emit('battle_error', {'message': 'Invalid room code.'})
         return
@@ -2245,6 +2288,7 @@ def on_battle_join_request(data):
     # Check if already in (re-join)
     if current_user.id in room['players']:
         room['players'][current_user.id]['sid'] = request.sid
+        save_battles() # Update SID
         join_room(room_code)
         emit('battle_rejoined', {'state': room['state'], 'room_code': room_code})
         return
@@ -2255,12 +2299,15 @@ def on_battle_join_request(data):
         'name': current_user.first_name or 'Opponent',
         'sid': request.sid
     }
+    save_battles()
     
     # Notify Host
-    host_sid = room['players'][room['host']]['sid']
-    socketio.emit('battle_join_request_notify', {
-        'player_name': room['pending_join']['name']
-    }, room=host_sid)
+    host_id = room['host']
+    if host_id in room['players']:
+        host_sid = room['players'][host_id]['sid']
+        socketio.emit('battle_join_request_notify', {
+            'player_name': room['pending_join']['name']
+        }, room=host_sid)
 
 @socketio.on('battle_join_response')
 def on_battle_join_response(data):
@@ -2281,21 +2328,23 @@ def on_battle_join_response(data):
         
     if accepted:
         # Add player
-        room['players'][pending['id']] = {
+        # Ensure pending ID is int if originating from JSON
+        p_id = int(pending['id']) if isinstance(pending['id'], (str, int)) and str(pending['id']).isdigit() else pending['id']
+        
+        room['players'][p_id] = {
             'name': pending['name'],
             'sid': pending['sid'],
-            'joined_at': datetime.utcnow()
+            'joined_at': datetime.utcnow().isoformat()
         }
+        room['pending_join'] = None
+        save_battles()
         
         # Manually join the socket room for the new player
-        # Note: In Flask-SocketIO, we can't easily force another SID to join a room 
-        # unless we are in that context or use a specific manager. 
-        # Easier approach: Emit 'join_accepted' to the pending player, they emit 'battle_confirm_join'.
         socketio.emit('join_accepted', {'room_code': room_code}, room=pending['sid'])
-        room['pending_join'] = None
     else:
         socketio.emit('battle_error', {'message': 'Host rejected your request.'}, room=pending['sid'])
         room['pending_join'] = None
+        save_battles()
 
 @socketio.on('battle_confirm_join')
 def on_battle_confirm_join(data):
@@ -2306,17 +2355,19 @@ def on_battle_confirm_join(data):
         # Room is full, move to SETUP immediately
         room = battles[room_code]
         room['state'] = 'setup'
+        save_battles()
         
         # Notify both to open UI
         emit('battle_entered', {'room_code': room_code}, room=room_code)
         
         # AI Welcome Message
+        host_name = room['players'][room['host']]['name']
         socketio.emit('battle_chat_message', {
             'sender': 'ByteBot',
             'message': (
                 "Welcome to Byte Battle ⚔️\n"
                 "Both players are connected.\n\n"
-                f"Host ({room['players'][room['host']]['name']}), please select:\n"
+                f"Host ({host_name}), please select:\n"
                 "• Difficulty: Easy / Medium / Hard\n"
                 "• Language: Python / JS / Java / C"
             ),

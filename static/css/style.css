@@ -406,6 +406,13 @@ h4 {
 
     body.sidebar-open .sidebar {
         left: 0;
+        box-shadow: 100vw 0 0 rgba(0, 0, 0, 0.5);
+        /* Dim background */
+    }
+
+    /* Prevent body scroll when sidebar is open */
+    body.sidebar-open {
+        overflow: hidden;
     }
 }
 
@@ -1836,6 +1843,38 @@ body.sidebar-collapsed .sidebar .nav-item i {
     .sidebar .xp-progress-container {
         font-size: 0.65rem;
     }
+
+    /* Better Mobile Typography Scaling for "Just Like Desktop" feel */
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        /* Stack on mobile but keep proportions */
+        gap: 16px;
+    }
+
+    .layout-home {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .stats-row {
+        gap: 12px;
+    }
+
+    /* Ensure charts don't overflow */
+    canvas {
+        max-width: 100%;
+    }
+
+    /* Adjust font sizes to be legible but compact */
+    .card-title,
+    h3 {
+        font-size: 1rem;
+    }
+
+    p,
+    .text-secondary {
+        font-size: 0.85rem;
+    }
 }
 
 /* Landscape Mobile Optimization */
@@ -1883,4 +1922,102 @@ body.sidebar-collapsed .sidebar .nav-item i {
     .card {
         page-break-inside: avoid;
     }
+}
+
+/* =========================================
+   Analytics / Progress Page Fixes
+   ========================================= */
+
+/* Dark Mode Dropdown */
+.theme-select {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: var(--radius-sm);
+    outline: none;
+    cursor: pointer;
+    font-family: var(--font-body);
+    font-size: 0.9rem;
+    transition: all 0.2s;
+}
+
+.theme-select:hover {
+    border-color: var(--accent-green);
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.theme-select option {
+    background-color: var(--bg-card);
+    color: var(--text-primary);
+    padding: 10px;
+}
+
+/* Skill Radar Tooltip - Show ? only on Header Hover */
+.card-header .question-mark {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+    position: relative;
+    /* Ensure it doesn't shift layout */
+}
+
+/* Show ? when hovering the card header OR the question mark itself */
+.card-header:hover .question-mark,
+.question-mark:hover {
+    opacity: 1;
+}
+
+/* Tooltip Text (The actual popup) */
+.tooltip-container {
+    position: relative;
+    display: inline-block;
+}
+
+.tooltip-text {
+    visibility: hidden;
+    width: 220px;
+    background-color: #18181b;
+    /* Zinc-900 */
+    color: #fff;
+    text-align: left;
+    border-radius: 8px;
+    padding: 12px;
+
+    /* Position */
+    position: absolute;
+    z-index: 100;
+    bottom: 125%;
+    /* Show above */
+    left: 50%;
+    transform: translateX(-50%);
+
+    /* Effects */
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    border: 1px solid var(--border);
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+
+    font-size: 0.85rem;
+    line-height: 1.4;
+    font-family: var(--font-body);
+    font-weight: 400;
+}
+
+/* Arrow */
+.tooltip-text::after {
+    content: "";
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    margin-left: -5px;
+    border-width: 5px;
+    border-style: solid;
+    border-color: var(--border) transparent transparent transparent;
+}
+
+/* Show Tooltip Text on Hovering the ? Icon */
+.tooltip-container:hover .tooltip-text {
+    visibility: visible;
+    opacity: 1;
+    transform: translateX(-50%) translateY(-5px);
 }

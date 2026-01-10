@@ -1,1 +1,1 @@
-web: gunicorn app:app
+web: python updatexp.py && gunicorn -k eventlet -w 1 app:app

@@ -9,7 +9,8 @@
         --battle-bg: #0f0f0f;
         --battle-card-bg: #1a1a1a;
         --battle-border: #333;
-        --battle-accent: #3b82f6; /* Blue-ish */
+        --battle-accent: #3b82f6;
+        /* Blue-ish */
         --battle-text: #e5e5e5;
         --battle-text-dim: #a3a3a3;
     }
@@ -17,13 +18,15 @@
     body {
         background-color: var(--battle-bg);
         color: var(--battle-text);
-        overflow: hidden; /* Prevent scrolling in battle mode */
+        overflow: hidden;
+        /* Prevent scrolling in battle mode */
     }
 
     #battle-wrapper {
         display: flex;
         flex-direction: column;
-        height: calc(100vh - 80px); /* Adjust based on navbar height */
+        height: calc(100vh - 80px);
+        /* Adjust based on navbar height */
         max-width: 1400px;
         margin: 0 auto;
         padding: 1rem;
@@ -42,10 +45,12 @@
 
     .battle-grid {
         display: grid;
-        grid-template-columns: 2fr 1fr; /* Editor+Problem vs Chat */
+        grid-template-columns: 2fr 1fr;
+        /* Editor+Problem vs Chat */
         gap: 1rem;
         flex: 1;
-        min-height: 0; /* Important for grid overflow */
+        min-height: 0;
+        /* Important for grid overflow */
     }
 
     .panel-col {
@@ -66,7 +71,7 @@
 
     .card-header {
         padding: 0.75rem 1rem;
-        background: rgba(255,255,255,0.02);
+        background: rgba(255, 255, 255, 0.02);
         border-bottom: 1px solid var(--battle-border);
         font-weight: 600;
         font-size: 0.9rem;
@@ -139,7 +144,8 @@
     }
 
     .chat-msg.bot .msg-bubble {
-        background: rgba(59, 130, 246, 0.15); /* Blue tint */
+        background: rgba(59, 130, 246, 0.15);
+        /* Blue tint */
         border: 1px solid rgba(59, 130, 246, 0.3);
         color: #bfdbfe;
     }
@@ -171,8 +177,11 @@
     /* Modal */
     .modal-overlay {
         position: fixed;
-        top: 0; left: 0; right: 0; bottom: 0;
-        background: rgba(0,0,0,0.8);
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.8);
         display: none;
         align-items: center;
         justify-content: center;
@@ -186,7 +195,7 @@
         border-radius: 12px;
         width: 400px;
         text-align: center;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
     }
 
     .status-badge {
@@ -197,7 +206,12 @@
         background: #333;
         color: #aaa;
     }
-    .status-badge.active { background: rgba(59, 130, 246, 0.2); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.4); }
+
+    .status-badge.active {
+        background: rgba(59, 130, 246, 0.2);
+        color: #60a5fa;
+        border: 1px solid rgba(59, 130, 246, 0.4);
+    }
 
     /* Utilities */
     .btn-battle {
@@ -208,16 +222,32 @@
         transition: all 0.2s;
         border: none;
     }
-    .btn-primary { background: var(--battle-accent); color: white; }
-    .btn-primary:hover { opacity: 0.9; }
-    .btn-secondary { background: #333; color: white; }
-    .btn-secondary:hover { background: #444; }
 
-    .hidden { display: none !important; }
+    .btn-primary {
+        background: var(--battle-accent);
+        color: white;
+    }
+
+    .btn-primary:hover {
+        opacity: 0.9;
+    }
+
+    .btn-secondary {
+        background: #333;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #444;
+    }
+
+    .hidden {
+        display: none !important;
+    }
 </style>
 
 <div id="battle-wrapper">
-    
+
     <!-- 1. ENTRY SCREEN -->
     <div id="screen-entry">
         <div class="entry-box">
@@ -225,12 +255,13 @@
             <h1 style="margin-bottom: 0.5rem; font-family: var(--font-heading);">BYTE BATTLE</h1>
             <p style="color: var(--battle-text-dim); margin-bottom: 2rem;">Host or join a live coding duel.</p>
 
-            <button id="btn-create" class="btn-battle btn-primary" style="width: 100%; font-size: 1.1rem; margin-bottom: 1.5rem;">
+            <button id="btn-create" class="btn-battle btn-primary"
+                style="width: 100%; font-size: 1.1rem; margin-bottom: 1.5rem;">
                 Create Room
             </button>
 
             <div style="display: flex; gap: 0.5rem;">
-                <input type="text" id="join-code" placeholder="Enter Room Code" 
+                <input type="text" id="join-code" placeholder="Enter Room Code"
                     style="flex: 1; padding: 0.75rem; background: #222; border: 1px solid #444; border-radius: 6px; color: white; text-transform: uppercase; text-align: center;">
                 <button id="btn-join" class="btn-battle btn-secondary">Join</button>
             </div>
@@ -239,19 +270,22 @@
 
     <!-- 2. BATTLE INTERFACE (Initially Hidden) -->
     <div id="screen-battle" class="hidden" style="flex-direction: column; height: 100%;">
-        
+
         <!-- Header -->
         <div class="battle-header">
             <div style="display: flex; align-items: center; gap: 1rem;">
                 <span style="font-weight: 700; font-size: 1.2rem;">⚔️ BYTE BATTLE</span>
-                <span style="color: var(--battle-text-dim); font-family: monospace;">Room: <span id="room-display">---</span></span>
+                <span style="color: var(--battle-text-dim); font-family: monospace;">Room: <span
+                        id="room-display">---</span></span>
             </div>
-            <div id="timer-display" style="font-family: monospace; font-size: 1.5rem; font-weight: 700; width: 100px; text-align: center;">--:--</div>
+            <div id="timer-display"
+                style="font-family: monospace; font-size: 1.5rem; font-weight: 700; width: 100px; text-align: center;">
+                --:--</div>
             <div id="status-display" class="status-badge">WAITING</div>
         </div>
 
         <div class="battle-grid">
-            
+
             <!-- LEFT COLUMN -->
             <div class="panel-col">
                 <!-- Code Editor -->
@@ -273,7 +307,8 @@
                         <p id="problem-desc" style="color: var(--battle-text-dim); line-height: 1.6;">
                             The battle has not started yet.
                         </p>
-                        <div id="problem-details" class="hidden" style="margin-top: 1rem; background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.9rem;">
+                        <div id="problem-details" class="hidden"
+                            style="margin-top: 1rem; background: rgba(255,255,255,0.05); padding: 0.75rem; border-radius: 6px; font-family: monospace; font-size: 0.9rem;">
                             <div><strong>Input:</strong> <span id="prob-in"></span></div>
                             <div style="margin-top: 0.5rem;"><strong>Output:</strong> <span id="prob-out"></span></div>
                         </div>
@@ -291,7 +326,7 @@
                         <!-- Messages -->
                     </div>
                     <div style="padding: 1rem; border-top: 1px solid var(--battle-border); background: #1a1a1a;">
-                        <input type="text" id="chat-input" placeholder="Type a message..." 
+                        <input type="text" id="chat-input" placeholder="Type a message..."
                             style="width: 100%; padding: 0.75rem; background: #262626; border: 1px solid #444; border-radius: 6px; color: white; margin-bottom: 0.75rem;">
                         <button id="btn-submit" class="btn-battle btn-primary" style="width: 100%;">
                             SUBMIT CODE
@@ -324,8 +359,9 @@
     <div class="modal-box" style="width: 500px;">
         <div style="font-size: 3rem; margin-bottom: 1rem;">🏆</div>
         <h2 style="margin-bottom: 1rem;">BATTLE RESULT</h2>
-        
-        <div id="result-body" style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+
+        <div id="result-body"
+            style="background: rgba(255,255,255,0.05); padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
             <h3 id="res-winner" style="color: var(--battle-accent); margin-bottom: 0.5rem;">Winner: Player 1</h3>
             <p id="res-reason" style="color: var(--battle-text-dim);">Reason: Better logic.</p>
         </div>
@@ -345,6 +381,6 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.1/socket.io.js"></script>
+<!-- Socket.IO is now in layout.html -->
 <script src="{{ url_for('static', filename='js/battle.js') }}"></script>
 {% endblock %}
