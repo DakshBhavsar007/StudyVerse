@@ -1,6 +1,6 @@
 import eventlet
 eventlet.monkey_patch()
-from psycogreen.gevent import patch_psycopg
+from psycogreen.eventlet import patch_psycopg
 patch_psycopg()
 
 from flask import Flask, render_template, request, session, redirect, url_for, Response, flash, jsonify
