@@ -7418,12 +7418,36 @@ with app.app_context():
     # PostgreSQL supports ADD COLUMN IF NOT EXISTS natively.
     # SQLite does NOT support IF NOT EXISTS for columns, so we catch the
     # "duplicate column" OperationalError and continue.
+    #
+    # ⚠️  IMPORTANT: Every new column added to the User model MUST also be
+    #     listed here so that existing databases (Render PostgreSQL) get the
+    #     column automatically on the next deploy — no manual ALTER needed.
     _new_user_columns = [
-        # (sql_for_postgres,                                   sql_for_sqlite)
+        # ── Previously-added columns ─────────────────────────────────────────
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS referral_code VARCHAR(20) UNIQUE",
          'ALTER TABLE "user" ADD COLUMN referral_code VARCHAR(20)'),
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES \"user\"(id)",
          'ALTER TABLE "user" ADD COLUMN referred_by INTEGER'),
+
+        # ── Admin / Ban columns ───────────────────────────────────────────────
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE",
+         'ALTER TABLE "user" ADD COLUMN is_admin BOOLEAN DEFAULT 0'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE",
+         'ALTER TABLE "user" ADD COLUMN is_banned BOOLEAN DEFAULT 0'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS ban_reason TEXT",
+         'ALTER TABLE "user" ADD COLUMN ban_reason TEXT'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS banned_at TIMESTAMP",
+         'ALTER TABLE "user" ADD COLUMN banned_at DATETIME'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS banned_by INTEGER REFERENCES \"user\"(id)",
+         'ALTER TABLE "user" ADD COLUMN banned_by INTEGER'),
+
+        # ── ⚔️  Byte Battle columns (NEW) ────────────────────────────────────
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_xp INTEGER DEFAULT 0",
+         'ALTER TABLE "user" ADD COLUMN battle_xp INTEGER DEFAULT 0'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_wins INTEGER DEFAULT 0",
+         'ALTER TABLE "user" ADD COLUMN battle_wins INTEGER DEFAULT 0'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_losses INTEGER DEFAULT 0",
+         'ALTER TABLE "user" ADD COLUMN battle_losses INTEGER DEFAULT 0'),
     ]
 
     _is_postgres = 'postgresql' in app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -7433,7 +7457,7 @@ with app.app_context():
             _sql = _pg_sql if _is_postgres else _sqlite_sql
             db.session.execute(db.text(_sql))
             db.session.commit()
-            print(f"✅  Migration OK: {_sql[:60]}…")
+            print(f"✅  Migration OK: {_sql[:70]}…")
         except Exception as _col_err:
             db.session.rollback()
             _msg = str(_col_err).lower()
@@ -7442,7 +7466,7 @@ with app.app_context():
             else:
                 print(f"⚠️  Migration warning: {_col_err}")
 
-    print("✅  DB migrations complete.")
+    print("✅  DB migrations complete (battle_xp / battle_wins / battle_losses included).")
 
 
 # ============================================================================
