@@ -151,6 +151,15 @@ document.addEventListener('DOMContentLoaded', () => {
         const total = data.players ? data.players.length : 2;
         enterWaiting({ room_code: data.room_code, mode: data.mode, visibility:'public',
             slots_total: total, slots_filled: total });
+        // Build team display from player list
+        if (data.players) {
+            const pMap = {};
+            data.players.forEach(p => { pMap[p.name] = p; });
+            setTeams(pMap);
+        }
+        if (data.your_team) showTeamBadge(data.your_team);
+        dbg('Match found! Room=' + data.room_code + ' Team=' + data.your_team);
+        // Tell server we're in the UI — this triggers join_room + battle start
         socket.emit('battle_entered', { room_code: currentRoom });
     });
 
@@ -232,9 +241,9 @@ document.addEventListener('DOMContentLoaded', () => {
             visibility: data.visibility || 'public',
             slots_total: data.slots_total, slots_filled: data.slots_filled
         });
-        setTeams(data.players||{});
+        setTeams(data.players || {});
         if (data.your_team) showTeamBadge(data.your_team);
-        dbg('Joined room ' + data.room_code + ' as Team ' + data.your_team);
+        dbg('Joined room ' + data.room_code + ' Team=' + data.your_team);
         socket.emit('battle_entered', { room_code: data.room_code });
     });
 
@@ -254,11 +263,11 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             setStatus('BATTLE IN PROGRESS');
             showScreen('screen-battle');
-            chatMsg('ByteBot','🔄 Reconnected!','system');
         } else if (state === 'ready' || state === 'starting') {
             enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public',
                 slots_total:data.slots_total||2, slots_filled:data.slots_filled||2 });
             setTeams(data.players||{});
+            if(data.your_team) showTeamBadge(data.your_team);
             chatMsg('ByteBot','⏳ Battle starting soon...','system');
         } else {
             enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public',
@@ -326,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ════════════════════════════════════
        BATTLE SCREEN
     ════════════════════════════════════ */
+    // Server sends team/status info to THIS player only (not broadcast)
     socket.on('battle_room_status', data => {
         if (data.your_team) showTeamBadge(data.your_team);
         const players = {};
@@ -363,7 +373,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(ce) ce.value='';
         if(sb2){sb2.disabled=false;sb2.textContent='SUBMIT CODE';}
         if(data.duration) startTimer(data.duration);
-        showScreen('screen-battle');  // LAST — all UI ready before showing
+        showScreen('screen-battle');
     });
 
     /* ── Chat input ── */
