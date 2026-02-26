@@ -1,598 +1,448 @@
 /**
- * StudyVerse - Battle Mode (Byte Battle)
- * ========================================
- * 
- * Purpose: Real-time competitive quiz battles between two users
- * 
- * SYSTEM ARCHITECTURE:
- * -------------------
- * - Client-Server Model: Socket.IO for real-time bidirectional communication
- * - Room-Based System: Each battle is isolated in a unique room
- * - State Machine: waiting → setup → battle → judging → result
- * 
- * BATTLE FLOW:
- * -----------
- * 1. **Matchmaking Phase**:
- *    - Host creates room → receives unique room code
- *    - Guest requests to join → host accepts/rejects
- * 
- * 2. **Setup Phase**:
- *    - Both players in room
- *    - Chat enabled for coordination
- *    - Host configures difficulty and language
- * 
- * 3. **Battle Phase**:
- *    - AI generates coding problem
- *    - Timer starts (configurable duration)
- *    - Both players write code simultaneously
- *    - First to submit or timer expires
- * 
- * 4. **Judging Phase**:
- *    - Backend evaluates code correctness
- *    - Calculates scores based on:
- *      * Correctness (pass/fail)
- *      * Time taken (faster = more points)
- *      * Code quality (optional)
- * 
- * 5. **Result Phase**:
- *    - Winner announced
- *    - XP rewards distributed
- *    - Rematch voting system
- * 
- * SOCKET.IO EVENTS:
- * ----------------
- * Emitted (Client → Server):
- * - battle_create: Create new battle room
- * - battle_join_request: Request to join room
- * - battle_join_response: Host accepts/rejects join
- * - battle_confirm_join: Guest confirms entry
- * - battle_chat_send: Send chat message
- * - battle_submit: Submit code solution
- * - battle_rematch_vote: Vote for rematch
- * - battle_heartbeat: Keep connection alive
- * - battle_rejoin_attempt: Reconnect to existing room
- * 
- * Received (Server → Client):
- * - battle_created: Room created successfully
- * - battle_join_request_notify: Notify host of join request
- * - join_accepted: Join request approved
- * - battle_entered: Both players in room
- * - battle_chat_message: Receive chat message
- * - battle_started: Battle phase begins
- * - battle_notification: Important event occurred
- * - battle_state_change: State transition
- * - battle_result: Battle finished, winner determined
- * - battle_restart: Rematch approved
- * - battle_rematch_declined: Rematch rejected
- * - battle_rejoined: Reconnection successful
- * - battle_error: Error occurred
- * 
- * DATA STRUCTURES:
- * ---------------
- * - Room State Object: {room_code, players[], state, problem, timer}
- * - Player Object: {id, name, score, submitted, code}
- * - Problem Object: {title, description, input_format, output_format, test_cases}
- * 
- * ALGORITHMS:
- * ----------
- * - Timer: Countdown using setInterval (1-second ticks)
- * - Score Calculation: base_points * (time_remaining / total_time)
- * - Reconnection: Exponential backoff for retry attempts
- * 
- * DESIGN PATTERNS:
- * ---------------
- * - State Machine: Battle progresses through defined states
- * - Observer Pattern: Socket.IO event listeners
- * - Session Persistence: sessionStorage for room code
- * 
- * ERROR HANDLING:
- * --------------
- * - Connection errors: Auto-reconnect with heartbeat
- * - Invalid room: Clear session and return to entry
- * - Timeout: Fallback UI reset after 10 seconds
+ * StudyVerse – Byte Battle (Unified JS)
+ * 1v1 · 2v2 · 3v3 · Public/Private · Auto-Matchmaking
+ * Single authoritative file — no inline script needed in battle.html
  */
-
-// ============================================================================
-// INITIALIZATION AND SETUP
-// ============================================================================
-
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Socket.IO Initialization ---
-    // Auto-detection of best transport method (Polling first, then upgrade to WebSocket)
+
+    /* ── Socket ── */
     const socket = io();
-    window.socket = socket;  // Expose globally for team battle extensions
+    window.socket = socket;
 
-    // --- State Variables ---
-    let currentRoom = sessionStorage.getItem('battle_room_code'); // Persist room across page refreshes
-    let isHost = false;  // Track if current user created the room
-    let battleTimer = null;  // Reference to countdown interval
+    /* ── State ── */
+    let currentRoom  = sessionStorage.getItem('battle_room_code') || null;
+    let isHost       = false;
+    let selMode      = '1v1';
+    let selVis       = 'public';
+    let battleTimer  = null;
+    let heartbeat    = null;
+    let pendInvite   = null;
 
-    // --- Elements ---
-    const screens = {
-        entry: document.getElementById('screen-entry'),
-        waiting: document.getElementById('screen-waiting'),
-        battle: document.getElementById('screen-battle')
-    };
+    /* ── Tiny helpers ── */
+    const $  = id => document.getElementById(id);
+    const on = (id, ev, fn) => { const el = $(id); if (el) el.addEventListener(ev, fn); };
 
-    const modals = {
-        joinReq: document.getElementById('modal-join-req'),
-        result: document.getElementById('modal-result')
-    };
-
-    const display = {
-        room: document.getElementById('room-display'),
-        timer: document.getElementById('timer-display'),
-        status: document.getElementById('status-display'),
-        lang: document.getElementById('lang-display'),
-        chat: document.getElementById('chat-log')
-    };
-
-    const problem = {
-        title: document.getElementById('problem-title'),
-        desc: document.getElementById('problem-desc'),
-        details: document.getElementById('problem-details'),
-        in: document.getElementById('prob-in'),
-        out: document.getElementById('prob-out')
-    };
-
-    const inputs = {
-        code: document.getElementById('code-editor'),
-        chat: document.getElementById('chat-input')
-    };
-
-    const buttons = {
-        create: document.getElementById('btn-create'),
-        join: document.getElementById('btn-join'),
-        submit: document.getElementById('btn-submit'),
-        accept: document.getElementById('btn-accept'),
-        reject: document.getElementById('btn-reject'),
-        voteYes: document.getElementById('btn-vote-yes'),
-        voteNo: document.getElementById('btn-vote-no')
-    };
-
-    // --- Helpers ---
     function showScreen(name) {
-        Object.values(screens).forEach(el => el.classList.add('hidden'));
-        if (screens[name]) {
-            screens[name].classList.remove('hidden');
-            screens[name].style.display = 'flex'; // Ensure flex layout applies
-        }
+        ['screen-entry','screen-waiting','screen-battle'].forEach(s => {
+            const el = $(s);
+            if (!el) return;
+            if (s === name) { el.classList.remove('hidden'); el.style.display = 'flex'; }
+            else            { el.classList.add('hidden');    el.style.display = 'none'; }
+        });
+        dbg('Screen → ' + name);
     }
 
-    function addChatMsg(sender, text, type = 'user') {
-        const div = document.createElement('div');
-        div.className = `chat-msg ${type}`;
-        if (type === 'system') div.className += ' system';
-        if (sender === 'ByteBot') div.className = 'chat-msg bot';
-        if (sender === 'You') div.className = 'chat-msg user';
+    /* ── Debug pill ── */
+    const pill = document.createElement('div');
+    pill.style.cssText = 'position:fixed;bottom:10px;right:10px;background:rgba(0,0,0,.85);color:lime;padding:3px 9px;font-size:10px;border-radius:4px;z-index:9999;pointer-events:none;';
+    pill.innerHTML = 'Status: <span id="_dbg">Init</span>';
+    document.body.appendChild(pill);
+    function dbg(msg) { const el = $('_dbg'); if (el) el.textContent = msg; console.log('[Battle]', msg); }
 
+    /* ── Toast ── */
+    function toast(msg, type) {
+        const c = {info:'#3b82f6',success:'#4ade80',error:'#ef4444',warn:'#f59e0b'};
+        const t = document.createElement('div');
+        t.style.cssText = `position:fixed;top:80px;right:20px;background:${c[type]||c.info};color:#fff;padding:12px 20px;border-radius:8px;z-index:9999;font-size:.9rem;box-shadow:0 4px 12px rgba(0,0,0,.4);max-width:320px;word-break:break-word;`;
+        t.textContent = msg;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 4000);
+    }
+
+    /* ── Chat ── */
+    function chatMsg(sender, text, type) {
+        const log = $('chat-log'); if (!log) return;
+        const wrap = document.createElement('div');
+        wrap.className = 'chat-msg ' + (sender === 'ByteBot' ? 'bot' : type === 'system' ? 'system' : (type||'user'));
         const bubble = document.createElement('div');
         bubble.className = 'msg-bubble';
-
-        // Handle bolding for system msgs (markdown-ish)
-        if (type === 'system' || sender === 'ByteBot') {
-            text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-            text = text.replace(/\n/g, '<br>');
-        }
-
-        bubble.innerHTML = (sender && type !== 'system' && sender !== 'You' ? `<strong>${sender}:</strong> ` : '') + text;
-        div.appendChild(bubble);
-        display.chat.appendChild(div);
-        display.chat.scrollTop = display.chat.scrollHeight;
+        const safe = (text||'').replace(/\*\*(.*?)\*\*/g,'<strong>$1</strong>').replace(/\n/g,'<br>');
+        bubble.innerHTML = (sender && type !== 'system' ? `<strong>${sender}:</strong> ` : '') + safe;
+        wrap.appendChild(bubble);
+        log.appendChild(wrap);
+        log.scrollTop = log.scrollHeight;
     }
 
-    function setStatus(text, active = false) {
-        display.status.textContent = text;
-        display.status.classList.remove('judging');
-        if (active) display.status.classList.add('active');
-        else display.status.classList.remove('active');
-    }
+    function setStatus(t) { const el = $('status-display'); if (el) el.textContent = t; }
 
-    // --- 1. Entry Logic ---
+    /* ── Mode / Visibility toggles ── */
+    document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active'); selMode = b.dataset.mode;
+    }));
+    document.querySelectorAll('.vis-btn').forEach(b => b.addEventListener('click', () => {
+        document.querySelectorAll('.vis-btn').forEach(x => x.classList.remove('active'));
+        b.classList.add('active'); selVis = b.dataset.vis;
+    }));
 
-    // --- Debug UI ---
-    const debugDiv = document.createElement('div');
-    debugDiv.id = 'battle-debug';
-    debugDiv.style.cssText = "position: fixed; bottom: 10px; right: 10px; background: rgba(0,0,0,0.8); color: lime; padding: 5px 10px; font-size: 10px; border-radius: 4px; pointer-events: none; opacity: 0.7; z-index: 9999;";
-    debugDiv.innerHTML = 'Status: <span id="debug-status">Init...</span>';
-    document.body.appendChild(debugDiv);
+    /* ── Copy code ── */
+    ['btn-copy-room','btn-copy-code'].forEach(id => on(id,'click', () => {
+        const code = currentRoom || ($('room-display') && $('room-display').textContent);
+        if (code && code !== '---') navigator.clipboard.writeText(code).then(() => toast('📋 Copied!','success'));
+    }));
 
-    function setDebug(msg) {
-        const el = document.getElementById('debug-status');
-        if (el) el.textContent = msg;
-        console.log('[BattleDebug]', msg);
-    }
-
-    // Add connection status handling
+    /* ════════════════════════════════════
+       SOCKET CONNECT / HEARTBEAT
+    ════════════════════════════════════ */
     socket.on('connect', () => {
-        setDebug('Connected');
-        console.log('[Battle] Socket connected successfully');
+        dbg('Connected');
+        socket.emit('join_personal_room', {});
+        if (currentRoom) { dbg('Rejoin ' + currentRoom); socket.emit('battle_rejoin_attempt', { room_code: currentRoom }); }
+        startHB();
+    });
+    socket.on('connect_error', () => { dbg('Conn Error'); stopHB(); });
+    socket.on('disconnect',    () => { dbg('Disconnected'); stopHB(); });
 
-        // Auto-rejoin if we have a room code and we are not already cleanly inside
-        if (currentRoom) { // currentRoom loaded from sessionStorage on init
-            setDebug('Attempting Rejoin...');
-            console.log('[Battle] Attempting to rejoin room:', currentRoom);
-            socket.emit('battle_rejoin_attempt', { room_code: currentRoom });
-        } else {
-            setDebug('Ready (No Room)');
-        }
+    function startHB() { stopHB(); heartbeat = setInterval(() => { if (currentRoom) socket.emit('battle_heartbeat', { room_code: currentRoom }); }, 30000); }
+    function stopHB()  { if (heartbeat) { clearInterval(heartbeat); heartbeat = null; } }
 
-        // Start heartbeat to keep connection alive
-        startHeartbeat();
+    /* ════════════════════════════════════
+       CREATE ROOM
+    ════════════════════════════════════ */
+    on('btn-create','click', () => {
+        const btn = $('btn-create');
+        btn.textContent = 'Creating…'; btn.disabled = true;
+        dbg('Create ' + selMode + ' / ' + selVis);
+        socket.emit('battle_create', { mode: selMode, visibility: selVis });
+        setTimeout(() => { if (btn.disabled) { btn.textContent='Create Room'; btn.disabled=false; toast('Timeout – try again','error'); } }, 10000);
     });
 
-    socket.on('connect_error', (error) => {
-        setDebug('Conn Error');
-        console.error('[Battle] Socket connection error:', error);
-        stopHeartbeat();
-    });
-
-    socket.on('disconnect', (reason) => {
-        setDebug('Disconnected');
-        console.log('[Battle] Socket disconnected:', reason);
-        stopHeartbeat();
-    });
-
-    // Heartbeat mechanism to keep connection alive
-    let heartbeatInterval = null;
-
-    function startHeartbeat() {
-        stopHeartbeat(); // Clear any existing interval
-        heartbeatInterval = setInterval(() => {
-            if (currentRoom) {
-                socket.emit('battle_heartbeat', { room_code: currentRoom });
-                console.log('[Battle] Heartbeat sent for room:', currentRoom);
-            }
-        }, 30000); // Send heartbeat every 30 seconds
-    }
-
-    function stopHeartbeat() {
-        if (heartbeatInterval) {
-            clearInterval(heartbeatInterval);
-            heartbeatInterval = null;
-        }
-    }
-
-    if (buttons.create) {
-        buttons.create.addEventListener('click', () => {
-            // ... existing create logic ...
-            setDebug('Creating Room...');
-            // ...
-        });
-    }
-
-    // ...
-
-    socket.on('battle_error', (data) => {
-        setDebug('Error: ' + data.message);
-        console.error('[Battle] Error:', data.message);
-        alert(data.message);
-
-        // If room is invalid, clear session to prevent stuck loop
-        if (data.message.includes('Invalid room') || data.message.includes('expired') || data.message.includes('not in this room')) {
-            sessionStorage.removeItem('battle_room_code');
-            currentRoom = null;
-            showScreen('entry');
-            setDebug('Session Cleared');
-        }
-
-        // Reset join button if it was in a loading state
-        if (buttons.join.textContent === "Requesting...") {
-            buttons.join.textContent = "Join";
-            buttons.join.disabled = false;
-        }
-        // Hide modal if open
-        if (modals.joinReq) modals.joinReq.style.display = 'none';
-    });
-
-
-
-    if (buttons.create) {
-        buttons.create.addEventListener('click', () => {
-            console.log('[Battle] Create button clicked, emitting battle_create');
-            buttons.create.textContent = "Creating...";
-            buttons.create.disabled = true;
-            socket.emit('battle_create', {});
-
-            // Timeout fallback
-            setTimeout(() => {
-                if (buttons.create.textContent === "Creating...") {
-                    buttons.create.textContent = "Create Room";
-                    buttons.create.disabled = false;
-                    alert("Failed to create room. Server might not be responding. Please try again.");
-                }
-            }, 10000);
-        });
-    } else {
-        console.error('[Battle] btn-create element not found!');
-    }
-
-    buttons.join.addEventListener('click', () => {
-        const code = document.getElementById('join-code').value.trim();
-        if (!code) return alert("Enter a room code!");
-
-        // Change button to loading state
-        buttons.join.textContent = "Requesting...";
-        buttons.join.disabled = true;
-
-        socket.emit('battle_join_request', { room_code: code });
-        currentRoom = code;
-    });
-
-
-
-    socket.on('battle_rejoined', (data) => {
-        console.log('[Battle] Rejoined room:', data.room_code);
+    socket.on('battle_created', data => {
+        dbg('Room created: ' + data.room_code);
         currentRoom = data.room_code;
-        isHost = data.is_host;
-
-        display.room.textContent = currentRoom;
-
-        // Restore UI state
-        // If battle holds state like code content, we should restore it here if server sent it
-        // For now, just show the screen
-        showScreen('battle');
-        setStatus(data.state === 'waiting' ? "WAITING FOR PLAYER" : "BATTLE IN PROGRESS");
-
-        if (isHost && data.state === 'waiting') {
-            addChatMsg("ByteBot", "Reconnected successfully. Waiting for opponent...", 'system');
-        } else {
-            addChatMsg("ByteBot", "Reconnected successfully.", 'system');
-        }
-    });
-
-    socket.on('battle_created', (data) => {
-        console.log('[Battle] Room created:', data.room_code);
-        currentRoom = data.room_code;
-        sessionStorage.setItem('battle_room_code', currentRoom); // Save to session
+        sessionStorage.setItem('battle_room_code', currentRoom);
         isHost = true;
-        if (display.room) display.room.textContent = currentRoom;
+        const btn = $('btn-create'); if (btn) { btn.textContent='Create Room'; btn.disabled=false; }
+        enterWaiting(data);
+        socket.emit('battle_entered', { room_code: currentRoom });
+    });
 
-        // Reset create button
-        if (buttons.create) {
-            buttons.create.textContent = "Create Room";
-            buttons.create.disabled = false;
+    /* ════════════════════════════════════
+       AUTO MATCHMAKING
+    ════════════════════════════════════ */
+    on('btn-auto-mm','click', () => {
+        const btn = $('btn-auto-mm'); if (btn) btn.disabled = true;
+        const ms = $('mm-status'); if (ms) ms.style.display = 'block';
+        const mt = $('mm-status-text'); if (mt) mt.textContent = `Searching for ${selMode} opponents…`;
+        socket.emit('battle_queue_join', { mode: selMode });
+    });
+
+    on('btn-cancel-mm','click', () => {
+        socket.emit('battle_queue_leave', { mode: selMode });
+        const btn = $('btn-auto-mm'); if (btn) btn.disabled = false;
+        const ms = $('mm-status'); if (ms) ms.style.display = 'none';
+    });
+
+    socket.on('battle_queue_status', data => {
+        if (data.status === 'searching') {
+            const mt = $('mm-status-text'); if (mt) mt.textContent = `In queue… (${data.queue_size} waiting for ${data.mode})`;
+        } else {
+            const btn = $('btn-auto-mm'); if (btn) btn.disabled = false;
+            const ms = $('mm-status'); if (ms) ms.style.display = 'none';
         }
-
-        // For 1v1 (legacy), go straight to battle screen.
-        // For 2v2/3v3, the inline script's handler will show the waiting room.
-        // We only jump to battle for 1v1 without a mode field (backward compat).
-        if (!data.mode || data.mode === '1v1') {
-            showScreen('battle');
-            setStatus("WAITING FOR PLAYER");
-            addChatMsg("ByteBot", "Room created. Waiting for opponent to join...");
-            addChatMsg("ByteBot", `Invite Code: **${currentRoom}**`, 'system');
-        }
-        // Otherwise, the inline team script handles the waiting room transition
     });
 
-
-
-    // --- 2. Join Request Flow (Host Side) ---
-
-    socket.on('battle_join_request_notify', (data) => {
-        document.getElementById('req-name').textContent = data.player_name;
-        modals.joinReq.style.display = 'flex';
-    });
-
-    buttons.accept.addEventListener('click', () => {
-        socket.emit('battle_join_response', { room_code: currentRoom, accepted: true });
-        modals.joinReq.style.display = 'none';
-    });
-
-    buttons.reject.addEventListener('click', () => {
-        socket.emit('battle_join_response', { room_code: currentRoom, accepted: false });
-        modals.joinReq.style.display = 'none';
-    });
-
-    // --- 3. Join Accepted (Guest Side) ---
-
-    socket.on('join_accepted', (data) => {
+    socket.on('battle_match_found', data => {
+        const btn = $('btn-auto-mm'); if (btn) btn.disabled = false;
+        const ms  = $('mm-status');  if (ms) ms.style.display = 'none';
         currentRoom = data.room_code;
-        socket.emit('battle_confirm_join', { room_code: currentRoom });
+        sessionStorage.setItem('battle_room_code', currentRoom);
+        enterWaiting({ room_code: data.room_code, mode: data.mode, visibility:'public',
+            slots_total: data.players ? data.players.length : 2, slots_filled: data.players ? data.players.length : 2 });
+        socket.emit('battle_entered', { room_code: currentRoom });
     });
 
-    // --- 4. Setup Phase ---
-
-    socket.on('battle_entered', (data) => {
-        if (!currentRoom) currentRoom = data.room_code; // Ensure set for guest
-        display.room.textContent = currentRoom;
-        showScreen('battle');
-        setStatus("SETUP");
+    /* ════════════════════════════════════
+       MANUAL JOIN
+    ════════════════════════════════════ */
+    on('btn-join','click', () => {
+        const ci = $('join-code'); if (!ci || !ci.value.trim()) { toast('Enter a room code!','warn'); return; }
+        const code = ci.value.trim().toUpperCase();
+        const btn  = $('btn-join'); if (btn) { btn.textContent='Requesting…'; btn.disabled=true; }
+        currentRoom = code;
+        socket.emit('battle_join_request', { room_code: code });
     });
 
-    socket.on('battle_chat_message', (data) => {
-        addChatMsg(data.sender, data.message, data.type);
+    socket.on('battle_waiting_approval', data => {
+        toast('⏳ ' + (data.message || 'Waiting for host…'), 'info');
+        const btn = $('btn-join'); if (btn) { btn.textContent='Join'; btn.disabled=false; }
     });
 
-    // Chat Input
-    inputs.chat.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-            const msg = inputs.chat.value.trim();
-            if (msg) {
-                // Optimistic UI
-                addChatMsg("You", msg, 'user');
-                socket.emit('battle_chat_send', { room_code: currentRoom, message: msg });
-                inputs.chat.value = '';
-            }
-        }
-    });
-
-    // --- 5. Battle Phase ---
-
-    socket.on('battle_started', (data) => {
-        setStatus("BATTLE IN PROGRESS", true);
-
-        // Update Language Display
-        if (data.language) {
-            display.lang.textContent = data.language;
-        }
-
-        // Update Problem
-        problem.title.textContent = data.problem.title;
-        problem.desc.textContent = data.problem.description;
-        problem.in.textContent = data.problem.input_format;
-        problem.out.textContent = data.problem.output_format;
-        problem.details.classList.remove('hidden');
-
-        // Reset Editor
-        inputs.code.value = "";
-        buttons.submit.disabled = false;
-        buttons.submit.textContent = "SUBMIT CODE";
-
-        // Start Timer
-        startTimer(data.duration);
-    });
-
-    socket.on('battle_notification', (data) => {
-        // Play sound
-        const audio = document.getElementById('sound-bell');
-        if (audio) audio.play().catch(e => { });
-
-        // Flash border
-        document.body.style.borderColor = 'var(--battle-accent)';
-        setTimeout(() => document.body.style.borderColor = 'transparent', 500);
-    });
-
-    buttons.submit.addEventListener('click', () => {
-        const code = inputs.code.value;
-        if (!code.trim()) return alert("Write some code first!");
-
-        if (confirm("Submit solution?")) {
-            socket.emit('battle_submit', { room_code: currentRoom, code: code });
-            buttons.submit.disabled = true;
-            buttons.submit.textContent = "Submitted ✅";
-        }
-    });
-
-    socket.on('battle_state_change', (data) => {
-        if (data.state === 'judging') {
-            setStatus("JUDGING...");
-            display.status.classList.add('judging');
-            stopTimer();
-        }
-    });
-
-    // --- 6. Result & Rematch ---
-
-    socket.on('battle_result', (data) => {
-        display.status.classList.remove('judging');
-        modals.result.style.display = 'flex';
-        document.getElementById('res-winner').textContent = `Winner: ${data.winner}`;
-        document.getElementById('res-reason').textContent = data.reason;
-
-        // Reset vote buttons
-        buttons.voteYes.disabled = false;
-        buttons.voteNo.disabled = false;
-        document.getElementById('vote-status').textContent = "";
-    });
-
-    buttons.voteYes.addEventListener('click', () => {
-        socket.emit('battle_rematch_vote', { room_code: currentRoom, vote: 'yes' });
-        disableVotes("Waiting for opponent...");
-    });
-
-    buttons.voteNo.addEventListener('click', () => {
-        socket.emit('battle_rematch_vote', { room_code: currentRoom, vote: 'no' });
-        disableVotes("You declined. Notifying opponent...");
-        // Don't close modal here - let backend's battle_rematch_declined event handle it
-    });
-
-    function disableVotes(msg) {
-        buttons.voteYes.disabled = true;
-        buttons.voteNo.disabled = true;
-        document.getElementById('vote-status').textContent = msg;
+    /* ════════════════════════════════════
+       WAITING ROOM
+    ════════════════════════════════════ */
+    function enterWaiting(data) {
+        currentRoom = data.room_code;
+        const rc = $('wr-room-code'); if (rc) rc.textContent = data.room_code;
+        const ml = $('wr-mode-label');
+        if (ml) ml.textContent = `Mode: ${data.mode||'1v1'} · ${data.visibility==='private'?'🔒 Private':'🌐 Public'} · ${data.slots_filled||1}/${data.slots_total||2} players`;
+        buildSlots(data.slots_filled||1, data.slots_total||2);
+        showScreen('screen-waiting');
     }
 
-    socket.on('battle_restart', () => {
-        modals.result.style.display = 'none';
-        setStatus("SETUP");
-        problem.title.textContent = "Waiting for host configuration...";
-        problem.desc.textContent = "Host is selecting new difficulty/language via chat.";
-        problem.details.classList.add('hidden');
-        inputs.code.value = "";
+    function buildSlots(filled, total) {
+        const c = $('wr-slots'); if (!c) return; c.innerHTML = '';
+        for (let i = 0; i < total; i++) {
+            const s = document.createElement('div');
+            s.style.cssText = `width:40px;height:40px;border-radius:50%;border:2px solid ${i<filled?'#4ade80':'#444'};background:${i<filled?'rgba(74,222,128,.15)':'transparent'};display:flex;align-items:center;justify-content:center;font-size:1.1rem;`;
+            s.textContent = i < filled ? '✅' : '⌛';
+            c.appendChild(s);
+        }
+    }
+
+    function setTeams(players) {
+        const aEl = $('team-a-list'), bEl = $('team-b-list');
+        if (!players) return;
+        const a = Object.values(players).filter(p=>p.team==='A').map(p=>p.name);
+        const b = Object.values(players).filter(p=>p.team==='B').map(p=>p.name);
+        if (aEl) aEl.innerHTML = a.length ? a.map(n=>`<div>• ${n}</div>`).join('') : '—';
+        if (bEl) bEl.innerHTML = b.length ? b.map(n=>`<div>• ${n}</div>`).join('') : '—';
+    }
+
+    socket.on('battle_player_joined', data => {
+        buildSlots(data.slots_filled, data.slots_total);
+        setTeams(data.players||{});
+        const ml = $('wr-mode-label');
+        if (ml) ml.textContent = ml.textContent.replace(/\d+\/\d+/, `${data.slots_filled}/${data.slots_total}`);
+        toast(`👋 ${data.name} joined!`, 'success');
+    });
+
+    socket.on('battle_enter_room', data => {
+        currentRoom = data.room_code;
+        sessionStorage.setItem('battle_room_code', currentRoom);
+        const btn = $('btn-join'); if (btn) { btn.textContent='Join'; btn.disabled=false; }
+        enterWaiting({ room_code:data.room_code, mode:data.mode, visibility:'public', slots_total:data.slots_total, slots_filled:data.slots_filled });
+        setTeams(data.players||{});
+        socket.emit('battle_entered', { room_code: data.room_code });
+    });
+
+    socket.on('battle_rejoined', data => {
+        currentRoom = data.room_code;
+        sessionStorage.setItem('battle_room_code', currentRoom);
+        if (data.state && data.state !== 'waiting') {
+            showScreen('screen-battle');
+            const rd = $('room-display'); if (rd) rd.textContent = currentRoom;
+            setStatus('BATTLE IN PROGRESS');
+            chatMsg('ByteBot','Reconnected.','system');
+        } else {
+            enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public', slots_total:data.slots_total||2, slots_filled:data.slots_filled||1 });
+            setTeams(data.players||{});
+        }
+    });
+
+    on('btn-leave-waiting','click', () => {
+        if (currentRoom) socket.emit('battle_leave', { room_code: currentRoom });
+        currentRoom = null; sessionStorage.removeItem('battle_room_code');
+        showScreen('screen-entry');
+    });
+
+    /* ════════════════════════════════════
+       INVITE FRIENDS (private rooms)
+    ════════════════════════════════════ */
+    on('btn-invite-friends','click', () => { const m=$('modal-invite'); if(m) m.style.display='flex'; });
+
+    document.querySelectorAll('.btn-invite-friend').forEach(btn => {
+        btn.addEventListener('click', () => {
+            if (!currentRoom) { toast('Create a room first!','warn'); return; }
+            socket.emit('battle_invite_friend', { room_code: currentRoom, friend_id: parseInt(btn.dataset.fid) });
+            btn.textContent = 'Invited ✅'; btn.disabled = true;
+        });
+    });
+
+    socket.on('battle_invite_sent', () => toast('📨 Invite sent!','success'));
+
+    socket.on('battle_invite_received', data => {
+        pendInvite = data;
+        const t=$('invite-title'), m=$('invite-msg');
+        if (t) t.textContent = '🎮 Battle Invite!';
+        if (m) m.textContent = `${data.host_name} invited you to a ${data.mode} battle. Room: ${data.room_code}`;
+        const modal=$('modal-invite-received'); if(modal) modal.style.display='flex';
+    });
+
+    on('btn-accept-invite','click', () => {
+        const m=$('modal-invite-received'); if(m) m.style.display='none';
+        if (pendInvite) { currentRoom=pendInvite.room_code; socket.emit('battle_join_request',{room_code:pendInvite.room_code}); pendInvite=null; }
+    });
+    on('btn-decline-invite','click', () => {
+        const m=$('modal-invite-received'); if(m) m.style.display='none';
+        pendInvite=null;
+    });
+
+    /* ════════════════════════════════════
+       HOST: JOIN REQUEST MODAL
+    ════════════════════════════════════ */
+    socket.on('battle_join_request_notify', data => {
+        const n=$('req-name'); if(n) n.textContent = data.name || data.player_name || 'Someone';
+        const m=$('modal-join-req'); if(m) m.style.display='flex';
+    });
+
+    on('btn-accept','click', () => {
+        const m=$('modal-join-req'); if(m) m.style.display='none';
+        socket.emit('battle_join_response', { room_code: currentRoom, accepted: true });
+    });
+    on('btn-reject','click', () => {
+        const m=$('modal-join-req'); if(m) m.style.display='none';
+        socket.emit('battle_join_response', { room_code: currentRoom, accepted: false });
+    });
+
+    /* ════════════════════════════════════
+       BATTLE SCREEN
+    ════════════════════════════════════ */
+    socket.on('battle_entered', data => {
+        if (!currentRoom && data && data.room_code) currentRoom = data.room_code;
+        const rd = $('room-display'); if(rd) rd.textContent = currentRoom;
+        chatMsg('ByteBot','✅ All players ready! Host: type /start or /config easy python','system');
+    });
+
+    socket.on('battle_started', data => {
+        showScreen('screen-battle');
+        const mode = data.mode || '1v1';
+        const badge=$('mode-badge'), rd=$('room-display'), ld=$('lang-display'), sb=$('team-scorebar');
+        if(badge) badge.textContent = mode;
+        if(rd) rd.textContent = currentRoom;
+        if(data.config && ld) ld.textContent = data.config.language || 'Python';
+        setStatus('BATTLE IN PROGRESS');
+        if(mode !== '1v1' && sb) {
+            sb.style.display = 'flex';
+            if(data.teams) chatMsg('ByteBot',`⚔️ Teams –\n🔵 A: ${(data.teams.A||[]).join(', ')}\n🔴 B: ${(data.teams.B||[]).join(', ')}`,'system');
+        }
+        if(data.problem) {
+            const pt=$('problem-title'),pd=$('problem-desc'),pp=$('problem-details'),pi=$('prob-in'),po=$('prob-out');
+            if(pt) pt.textContent = data.problem.title || 'Problem';
+            if(pd) pd.textContent = data.problem.description || '';
+            if(data.problem.examples && data.problem.examples.length && pi && po) {
+                pi.textContent = data.problem.examples[0].input  || '';
+                po.textContent = data.problem.examples[0].output || '';
+                if(pp) pp.classList.remove('hidden');
+            }
+        }
+        const ce=$('code-editor'),sb2=$('btn-submit');
+        if(ce) ce.value='';
+        if(sb2) { sb2.disabled=false; sb2.textContent='SUBMIT CODE'; }
+        if(data.duration) startTimer(data.duration);
+    });
+
+    /* ── Chat input ── */
+    socket.on('battle_chat_message', data => chatMsg(data.sender, data.message, data.type));
+
+    on('chat-input','keypress', e => {
+        if(e.key !== 'Enter') return;
+        const ci=$('chat-input'), msg=ci&&ci.value.trim();
+        if(msg && currentRoom) {
+            chatMsg('You', msg, 'user');
+            socket.emit('battle_chat_send', { room_code: currentRoom, message: msg });
+            ci.value = '';
+        }
+    });
+
+    /* ── Submit code ── */
+    on('btn-submit','click', () => {
+        const code = $('code-editor') && $('code-editor').value;
+        if(!code || !code.trim()) { toast('Write some code first!','warn'); return; }
+        if(confirm('Submit solution?')) {
+            socket.emit('battle_submit', { room_code: currentRoom, code });
+            const sb=$('btn-submit'); if(sb){sb.disabled=true; sb.textContent='Submitted ✅';}
+        }
+    });
+
+    socket.on('battle_team_scores', data => {
+        const a=$('score-team-a'),b=$('score-team-b');
+        if(a) a.textContent=data.A||0; if(b) b.textContent=data.B||0;
+    });
+
+    socket.on('battle_state_change', data => {
+        if(data.state==='judging') {
+            setStatus('JUDGING…'); stopTimer();
+            const sd=$('status-display'); if(sd) sd.classList.add('judging');
+        }
+    });
+
+    socket.on('battle_notification', () => { const a=$('sound-bell'); if(a) a.play().catch(()=>{}); });
+
+    /* ════════════════════════════════════
+       RESULT MODAL
+    ════════════════════════════════════ */
+    socket.on('battle_result', data => {
+        const sd=$('status-display'); if(sd){ sd.textContent='RESULT'; sd.classList.remove('judging'); }
+        stopTimer();
+        const wEl=$('res-winner'),rEl=$('res-reason'),xEl=$('res-xp'),tsEl=$('res-team-scores'),saEl=$('res-score-a'),sbEl=$('res-score-b');
+        if(wEl) wEl.textContent = data.winning_team ? `🏆 Team ${data.winning_team} wins!` : `🏆 ${data.winner||'Draw'}`;
+        if(rEl) rEl.textContent = data.summary || (data.feedback ? JSON.stringify(data.feedback,null,2) : '');
+        if(xEl && data.xp_awarded) xEl.textContent = Object.entries(data.xp_awarded).map(([n,v])=>`${n}: +${v} XP`).join(' · ');
+        if(data.team_scores && tsEl && saEl && sbEl){ tsEl.style.display='flex'; saEl.textContent=data.team_scores.A||0; sbEl.textContent=data.team_scores.B||0; }
+        const vy=$('btn-vote-yes'),vn=$('btn-vote-no'),vs=$('vote-status');
+        if(vy) vy.disabled=false; if(vn) vn.disabled=false; if(vs) vs.textContent='';
+        const mr=$('modal-result'); if(mr) mr.style.display='flex';
+    });
+
+    on('btn-vote-yes','click', () => {
+        socket.emit('battle_rematch_vote',{room_code:currentRoom,vote:'yes'});
+        const vy=$('btn-vote-yes'); if(vy) vy.disabled=true;
+        const vs=$('vote-status'); if(vs) vs.textContent='Voted YES – waiting for others…';
+    });
+    on('btn-vote-no','click', () => {
+        socket.emit('battle_rematch_vote',{room_code:currentRoom,vote:'no'});
+        const vn=$('btn-vote-no'); if(vn) vn.disabled=true;
     });
 
     socket.on('battle_rematch_declined', () => {
-        // Close result modal and return both players to entry screen
-        modals.result.style.display = 'none';
-
-        // Clear room state completely (room is expired on server)
-        sessionStorage.removeItem('battle_room_code');
-        currentRoom = null;
-        isHost = false;
-
-        // Clear chat
-        display.chat.innerHTML = '';
-
-        showScreen('entry');
-        addChatMsg('ByteBot', 'Match ended. Room has been closed. Create or join a new room to play again!', 'system');
+        const mr=$('modal-result'); if(mr) mr.style.display='none';
+        sessionStorage.removeItem('battle_room_code'); currentRoom=null; isHost=false;
+        const cl=$('chat-log'); if(cl) cl.innerHTML='';
+        showScreen('screen-entry');
     });
 
-    // Handle room closed by host leaving
-    socket.on('battle_room_closed', (data) => {
-        // Notify user and kick to entry screen
-        modals.result.style.display = 'none';
-        modals.joinReq.style.display = 'none';
-
-        sessionStorage.removeItem('battle_room_code');
-        currentRoom = null;
-        isHost = false;
-        stopTimer();
-
-        display.chat.innerHTML = '';
-        showScreen('entry');
-
-        // Show a brief toast notification
-        const msg = (data && data.reason) ? data.reason : 'The room has expired.';
-        const toast = document.createElement('div');
-        toast.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;background:#1a1a1a;border:1px solid #ef4444;color:#fca5a5;padding:14px 20px;border-radius:10px;font-size:14px;box-shadow:0 4px 20px rgba(239,68,68,0.3);animation:fadeInDown 0.3s ease;';
-        toast.innerHTML = `<i class="fa-solid fa-door-open" style="margin-right:8px;color:#ef4444;"></i>${msg}`;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 4000);
+    socket.on('battle_restart', () => {
+        const mr=$('modal-result'); if(mr) mr.style.display='none';
+        const ce=$('code-editor'),pt=$('problem-title'),pd=$('problem-desc'),pp=$('problem-details');
+        if(ce) ce.value=''; if(pt) pt.textContent='Waiting for host…'; if(pd) pd.textContent='Not started.'; if(pp) pp.classList.add('hidden');
+        setStatus('WAITING'); showScreen('screen-waiting');
     });
 
-    // --- Timer Util ---
-    function startTimer(duration) {
-        let timeLeft = duration;
-        stopTimer();
-        updateTimerDisplay(timeLeft);
-
-        battleTimer = setInterval(() => {
-            timeLeft--;
-            updateTimerDisplay(timeLeft);
-            if (timeLeft <= 0) {
-                stopTimer();
-                // Auto submit or end
-            }
-        }, 1000);
-    }
-
-    function stopTimer() {
-        if (battleTimer) clearInterval(battleTimer);
-    }
-
-    function updateTimerDisplay(seconds) {
-        const m = Math.floor(seconds / 60).toString().padStart(2, '0');
-        const s = (seconds % 60).toString().padStart(2, '0');
-        display.timer.textContent = `${m}:${s}`;
-
-        if (seconds < 60) display.timer.style.color = '#ef4444'; // Red
-        else display.timer.style.color = 'inherit';
-    }
-
-    // ── Leave Room (expire for everyone) ──────────────────────────────────
-    window.leaveRoom = function () {
-        if (!confirm('Are you sure you want to leave? This will close the room for both players.')) return;
-
-        if (currentRoom) {
-            // Tell server to expire room and kick other player
-            socket.emit('battle_leave', { room_code: currentRoom });
+    /* ════════════════════════════════════
+       ERRORS / ROOM CLOSED
+    ════════════════════════════════════ */
+    socket.on('battle_error', data => {
+        const msg = data.message || 'Error.';
+        toast('❌ '+msg,'error'); dbg('Err: '+msg);
+        if(msg.includes('Invalid')||msg.includes('expired')||msg.includes('not in this room')) {
+            sessionStorage.removeItem('battle_room_code'); currentRoom=null; showScreen('screen-entry');
         }
+        const bj=$('btn-join'); if(bj&&bj.disabled){bj.textContent='Join';bj.disabled=false;}
+    });
 
-        // Clear local state and navigate away
-        sessionStorage.removeItem('battle_room_code');
-        currentRoom = null;
-        window.location.href = '/battle';
+    socket.on('battle_room_closed', data => {
+        sessionStorage.removeItem('battle_room_code'); currentRoom=null; isHost=false; stopTimer();
+        ['modal-result','modal-join-req'].forEach(id=>{const el=$(id);if(el)el.style.display='none';});
+        const cl=$('chat-log'); if(cl) cl.innerHTML='';
+        showScreen('screen-entry');
+        toast('🚫 '+(data.reason||'Room closed.'),'error');
+    });
+
+    socket.on('battle_room_expired',()=>{ sessionStorage.removeItem('battle_room_code'); currentRoom=null; showScreen('screen-entry'); });
+
+    /* ════════════════════════════════════
+       TIMER
+    ════════════════════════════════════ */
+    function startTimer(dur) {
+        let t = dur||1800; stopTimer(); tickTimer(t);
+        battleTimer = setInterval(()=>{ t--; tickTimer(t); if(t<=0) stopTimer(); }, 1000);
+    }
+    function stopTimer() { if(battleTimer){clearInterval(battleTimer);battleTimer=null;} }
+    function tickTimer(s) {
+        const el=$('timer-display'); if(!el) return;
+        const m=Math.floor(s/60).toString().padStart(2,'0'), sec=(s%60).toString().padStart(2,'0');
+        el.textContent=`${m}:${sec}`; el.style.color=s<60?'#ef4444':'inherit';
+    }
+
+    /* ── Leave from battle screen ── */
+    window.leaveRoom = function() {
+        if(!confirm('Leave? This closes the room for everyone.')) return;
+        if(currentRoom) socket.emit('battle_leave',{room_code:currentRoom});
+        sessionStorage.removeItem('battle_room_code'); currentRoom=null;
+        window.location.href='/battle';
     };
+
+    /* ── Boot ── */
+    showScreen('screen-entry');
 });

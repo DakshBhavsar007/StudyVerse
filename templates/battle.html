@@ -452,7 +452,8 @@
 
             <!-- Visibility toggle (only relevant for Create Room) -->
             <div style="display:flex;gap:0.5rem;justify-content:center;margin-bottom:1.5rem;">
-                <button class="btn-battle vis-btn active" data-vis="public" title="Anyone can join by code; auto-matchmaking pools this room">
+                <button class="btn-battle vis-btn active" data-vis="public"
+                    title="Anyone can join by code; auto-matchmaking pools this room">
                     🌐 Public
                 </button>
                 <button class="btn-battle vis-btn" data-vis="private" title="Only invited friends can join">
@@ -492,14 +493,17 @@
     </div>
 
     <!-- ═══ 1. WAITING ROOM SCREEN ══════════════════════════════════════ -->
-    <div id="screen-waiting" class="hidden" style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;">
+    <div id="screen-waiting" class="hidden"
+        style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;">
         <div class="entry-box" style="max-width:480px;width:100%;">
             <div style="font-size:2rem;margin-bottom:0.5rem;">🏟️</div>
-            <h2 style="margin-bottom:0.25rem;">Room <span id="wr-room-code" style="color:var(--battle-accent);font-family:monospace;"></span></h2>
+            <h2 style="margin-bottom:0.25rem;">Room <span id="wr-room-code"
+                    style="color:var(--battle-accent);font-family:monospace;"></span></h2>
             <p id="wr-mode-label" style="color:var(--battle-text-dim);margin-bottom:1.5rem;">Waiting for players…</p>
 
             <!-- Slots indicator -->
-            <div id="wr-slots" style="display:flex;gap:0.75rem;justify-content:center;margin-bottom:1.5rem;flex-wrap:wrap;"></div>
+            <div id="wr-slots"
+                style="display:flex;gap:0.75rem;justify-content:center;margin-bottom:1.5rem;flex-wrap:wrap;"></div>
 
             <!-- Teams preview -->
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1.5rem;">
@@ -523,7 +527,8 @@
                 </button>
             </div>
 
-            <button id="btn-leave-waiting" class="btn-battle" style="width:100%;background:#ef4444;color:white;border:none;">
+            <button id="btn-leave-waiting" class="btn-battle"
+                style="width:100%;background:#ef4444;color:white;border:none;">
                 Leave Room
             </button>
         </div>
@@ -538,7 +543,8 @@
                 <span style="font-weight:700;font-size:1.2rem;">⚔️ BYTE BATTLE</span>
                 <span id="mode-badge"
                     style="background:#7c3aed;color:white;padding:2px 10px;border-radius:12px;font-size:0.8rem;font-weight:700;">1v1</span>
-                <span style="color:var(--battle-text-dim);font-family:monospace;display:flex;align-items:center;gap:8px;">
+                <span
+                    style="color:var(--battle-text-dim);font-family:monospace;display:flex;align-items:center;gap:8px;">
                     Room: <span id="room-display">---</span>
                     <button id="btn-copy-room" title="Copy Room ID"
                         style="background:rgba(255,255,255,0.1);border:none;color:inherit;cursor:pointer;padding:4px 8px;border-radius:4px;">
@@ -547,7 +553,8 @@
                 </span>
             </div>
             <div id="timer-display"
-                style="font-family:monospace;font-size:1.5rem;font-weight:700;width:100px;text-align:center;">--:--</div>
+                style="font-family:monospace;font-size:1.5rem;font-weight:700;width:100px;text-align:center;">--:--
+            </div>
             <div id="status-display" class="status-badge">WAITING</div>
             <button onclick="leaveRoom()" class="btn-battle"
                 style="background:#ef4444;color:white;padding:4px 12px;font-size:0.8rem;margin-left:10px;border:none;cursor:pointer;">
@@ -556,7 +563,8 @@
         </div>
 
         <!-- Team scoreboard bar (visible in 2v2/3v3) -->
-        <div id="team-scorebar" style="display:none;padding:0.5rem 1rem;background:#111;border-radius:6px;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">
+        <div id="team-scorebar"
+            style="display:none;padding:0.5rem 1rem;background:#111;border-radius:6px;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">
             <div style="color:#60a5fa;font-weight:700;">🔵 Team A: <span id="score-team-a">0</span></div>
             <div style="color:#888;font-size:0.8rem;">vs</div>
             <div style="color:#f87171;font-weight:700;">🔴 Team B: <span id="score-team-b">0</span></div>
@@ -582,7 +590,8 @@
                     </div>
                     <div class="problem-content">
                         <h3 id="problem-title" style="margin-bottom:0.5rem;color:white;">Waiting for host…</h3>
-                        <p id="problem-desc" style="color:var(--battle-text-dim);line-height:1.6;">The battle has not started yet.</p>
+                        <p id="problem-desc" style="color:var(--battle-text-dim);line-height:1.6;">The battle has not
+                            started yet.</p>
                         <div id="problem-details" class="hidden"
                             style="margin-top:1rem;background:rgba(255,255,255,0.05);padding:0.75rem;border-radius:6px;font-family:monospace;font-size:0.9rem;">
                             <div><strong>Input:</strong> <span id="prob-in"></span></div>
@@ -633,21 +642,23 @@
         <h3 style="margin-bottom:1rem;">👥 Invite Friends</h3>
         <div id="friend-invite-list" style="max-height:300px;overflow-y:auto;">
             {% if friends %}
-                {% for f in friends %}
-                <div style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0;border-bottom:1px solid #333;">
-                    <img src="{{ f.avatar }}" style="width:36px;height:36px;border-radius:50%;">
-                    <span style="flex:1;color:white;">{{ f.name }}</span>
-                    <button class="btn-battle btn-primary btn-invite-friend"
-                        data-fid="{{ f.id }}" style="padding:4px 14px;font-size:0.82rem;">
-                        Invite
-                    </button>
-                </div>
-                {% endfor %}
+            {% for f in friends %}
+            <div style="display:flex;align-items:center;gap:0.75rem;padding:0.6rem 0;border-bottom:1px solid #333;">
+                <img src="{{ f.avatar }}" style="width:36px;height:36px;border-radius:50%;">
+                <span style="flex:1;color:white;">{{ f.name }}</span>
+                <button class="btn-battle btn-primary btn-invite-friend" data-fid="{{ f.id }}"
+                    style="padding:4px 14px;font-size:0.82rem;">
+                    Invite
+                </button>
+            </div>
+            {% endfor %}
             {% else %}
-                <p style="color:var(--battle-text-dim);text-align:center;padding:1rem;">No friends yet. Add friends to invite them!</p>
+            <p style="color:var(--battle-text-dim);text-align:center;padding:1rem;">No friends yet. Add friends to
+                invite them!</p>
             {% endif %}
         </div>
-        <button onclick="document.getElementById('modal-invite').style.display='none'" class="btn-battle btn-secondary" style="width:100%;margin-top:1rem;">Close</button>
+        <button onclick="document.getElementById('modal-invite').style.display='none'" class="btn-battle btn-secondary"
+            style="width:100%;margin-top:1rem;">Close</button>
     </div>
 </div>
 
@@ -656,7 +667,8 @@
     <div class="modal-box">
         <div style="font-size:2rem;margin-bottom:1rem;">🎮</div>
         <h3 id="invite-title" style="margin-bottom:0.5rem;">Battle Invite!</h3>
-        <p id="invite-msg" style="color:var(--battle-text-dim);margin-bottom:2rem;">You have been invited to a battle.</p>
+        <p id="invite-msg" style="color:var(--battle-text-dim);margin-bottom:2rem;">You have been invited to a battle.
+        </p>
         <div style="display:flex;gap:1rem;justify-content:center;">
             <button id="btn-decline-invite" class="btn-battle btn-secondary" style="flex:1;">Decline</button>
             <button id="btn-accept-invite" class="btn-battle btn-primary" style="flex:1;">Join Battle</button>
@@ -672,9 +684,11 @@
 
         <div id="result-body"
             style="background:rgba(255,255,255,0.05);padding:1.5rem;border-radius:8px;margin-bottom:1.5rem;max-height:300px;overflow-y:auto;text-align:left;">
-            <h3 id="res-winner" style="color:var(--battle-accent);margin-bottom:0.5rem;text-align:center;">Winner: —</h3>
+            <h3 id="res-winner" style="color:var(--battle-accent);margin-bottom:0.5rem;text-align:center;">Winner: —
+            </h3>
             <!-- Team scores (2v2/3v3) -->
-            <div id="res-team-scores" style="display:none;margin-bottom:0.75rem;display:flex;gap:1rem;justify-content:center;">
+            <div id="res-team-scores"
+                style="display:none;margin-bottom:0.75rem;display:flex;gap:1rem;justify-content:center;">
                 <span style="color:#60a5fa;">🔵 Team A: <strong id="res-score-a">0</strong></span>
                 <span style="color:#f87171;">🔴 Team B: <strong id="res-score-b">0</strong></span>
             </div>
@@ -696,384 +710,20 @@
 
 {% endblock %}
 
+
 {% block scripts %}
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script src="{{ url_for('static', filename='js/battle.js') }}"></script>
-<script>
-// ──────────────────────────────────────────────────────────────────────────
-//  BYTE BATTLE  –  Team / Matchmaking JS
-// ──────────────────────────────────────────────────────────────────────────
-(function () {
-    'use strict';
-
-    /* ── State ── */
-    let selectedMode  = '1v1';
-    let selectedVis   = 'public';
-    let currentRoom   = null;
-    let isInQueue     = false;
-    let pendingInvite = null;   // { room_code, host_name, mode }
-
-    /* ── DOM helpers ── */
-    const $ = id => document.getElementById(id);
-
-    function showScreen(name) {
-        ['screen-entry', 'screen-waiting', 'screen-battle'].forEach(s => {
-            const el = $(s);
-            if (el) el.style.display = (s === name) ? 'flex' : 'none';
-        });
-    }
-
-    /* ── Mode / Visibility buttons ── */
-    document.querySelectorAll('.mode-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            selectedMode = btn.dataset.mode;
-        });
-    });
-
-    document.querySelectorAll('.vis-btn').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('.vis-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            selectedVis = btn.dataset.vis;
-        });
-    });
-
-    /* ── Copy room code ── */
-    ['btn-copy-room', 'btn-copy-code'].forEach(id => {
-        const el = $(id);
-        if (el) el.addEventListener('click', () => {
-            const code = currentRoom || ($('room-display') && $('room-display').innerText);
-            if (code && code !== '---') navigator.clipboard.writeText(code);
-        });
-    });
-
-    /* ── Socket connection ── */
-    // battle.js sets up `socket` globally; we extend it here
-    // We wait for socket to be ready
-    function waitForSocket(cb, tries = 0) {
-        if (window.socket) { cb(window.socket); return; }
-        if (tries > 40) { console.warn('Socket not found'); return; }
-        setTimeout(() => waitForSocket(cb, tries + 1), 150);
-    }
-
-    waitForSocket(socket => {
-
-        /* ── Join personal room for private invites ── */
-        socket.emit('join_personal_room', {});
-
-        /* ══ CREATE ROOM ══════════════════════════════════════════════ */
-        $('btn-create').addEventListener('click', () => {
-            socket.emit('battle_create', { mode: selectedMode, visibility: selectedVis });
-        });
-
-        socket.on('battle_created', data => {
-            currentRoom = data.room_code;
-            enterWaitingRoom(data);
-        });
-
-        /* ══ AUTO MATCHMAKING ══════════════════════════════════════════ */
-        $('btn-auto-mm').addEventListener('click', () => {
-            if (isInQueue) return;
-            isInQueue = true;
-            $('mm-status').style.display = 'block';
-            $('mm-status-text').textContent = `Searching for ${selectedMode} opponents…`;
-            socket.emit('battle_queue_join', { mode: selectedMode });
-        });
-
-        $('btn-cancel-mm').addEventListener('click', () => {
-            socket.emit('battle_queue_leave', { mode: selectedMode });
-            isInQueue = false;
-            $('mm-status').style.display = 'none';
-        });
-
-        socket.on('battle_queue_status', data => {
-            if (data.status === 'searching') {
-                $('mm-status-text').textContent = `In queue… (${data.queue_size} waiting for ${data.mode})`;
-            } else if (data.status === 'cancelled') {
-                isInQueue = false;
-                $('mm-status').style.display = 'none';
-            }
-        });
-
-        socket.on('battle_match_found', data => {
-            isInQueue = false;
-            $('mm-status').style.display = 'none';
-            currentRoom = data.room_code;
-            // Transition to waiting room UI populated from server
-            enterWaitingRoom({
-                room_code: data.room_code,
-                mode: data.mode,
-                visibility: 'public',
-                slots_total: data.players.length,
-                slots_filled: data.players.length
-            });
-            // Auto-join socket room
-            socket.emit('battle_entered', { room_code: data.room_code });
-        });
-
-        /* ══ MANUAL JOIN ══════════════════════════════════════════════ */
-        $('btn-join').addEventListener('click', () => {
-            const code = $('join-code').value.trim().toUpperCase();
-            if (!code) return;
-            socket.emit('battle_join_request', { room_code: code });
-        });
-
-        socket.on('battle_waiting_approval', data => {
-            showNotification('⏳ ' + data.message, 'info');
-        });
-
-        /* ══ WAITING ROOM ══════════════════════════════════════════════ */
-        function enterWaitingRoom(data) {
-            currentRoom = data.room_code;
-            $('wr-room-code').textContent = data.room_code;
-            $('wr-mode-label').textContent = `Mode: ${data.mode} · ${data.visibility === 'private' ? '🔒 Private' : '🌐 Public'} · ${data.slots_filled || 1}/${data.slots_total} players`;
-            buildSlots(data.slots_filled || 1, data.slots_total);
-            showScreen('screen-waiting');
-        }
-
-        function buildSlots(filled, total) {
-            const container = $('wr-slots');
-            container.innerHTML = '';
-            for (let i = 0; i < total; i++) {
-                const s = document.createElement('div');
-                s.style.cssText = `width:40px;height:40px;border-radius:50%;border:2px solid ${i < filled ? '#4ade80' : '#444'};background:${i < filled ? 'rgba(74,222,128,0.15)' : 'transparent'};display:flex;align-items:center;justify-content:center;`;
-                s.innerHTML = i < filled ? '✅' : '⌛';
-                container.appendChild(s);
-            }
-        }
-
-        function updateTeamLists(players) {
-            const aNames = Object.values(players).filter(p => p.team === 'A').map(p => p.name);
-            const bNames = Object.values(players).filter(p => p.team === 'B').map(p => p.name);
-            $('team-a-list').innerHTML = aNames.length ? aNames.map(n => `<div>• ${n}</div>`).join('') : '—';
-            $('team-b-list').innerHTML = bNames.length ? bNames.map(n => `<div>• ${n}</div>`).join('') : '—';
-        }
-
-        socket.on('battle_player_joined', data => {
-            buildSlots(data.slots_filled, data.slots_total);
-            updateTeamLists(data.players || {});
-            $('wr-mode-label').textContent = `${data.slots_filled}/${data.slots_total} players joined`;
-            showNotification(`👋 ${data.name} joined!`);
-        });
-
-        socket.on('battle_enter_room', data => {
-            currentRoom = data.room_code;
-            enterWaitingRoom({ room_code: data.room_code, mode: data.mode, visibility: 'public', slots_total: data.slots_total, slots_filled: data.slots_filled });
-            updateTeamLists(data.players || {});
-            // auto-confirm entry
-            socket.emit('battle_entered', { room_code: data.room_code });
-        });
-
-        /* ── Invite friends ── */
-        $('btn-invite-friends').addEventListener('click', () => {
-            $('modal-invite').style.display = 'flex';
-        });
-
-        document.querySelectorAll('.btn-invite-friend').forEach(btn => {
-            btn.addEventListener('click', () => {
-                socket.emit('battle_invite_friend', { room_code: currentRoom, friend_id: parseInt(btn.dataset.fid) });
-                btn.textContent = 'Invited ✅';
-                btn.disabled = true;
-            });
-        });
-
-        socket.on('battle_invite_sent', data => {
-            showNotification('📨 Invite sent!', 'success');
-        });
-
-        /* ── Receiving an invite ── */
-        socket.on('battle_invite_received', data => {
-            pendingInvite = data;
-            $('invite-title').textContent = '🎮 Battle Invite!';
-            $('invite-msg').textContent = `${data.host_name} invited you to a ${data.mode} battle. Room: ${data.room_code}`;
-            $('modal-invite-received').style.display = 'flex';
-        });
-
-        $('btn-accept-invite').addEventListener('click', () => {
-            if (!pendingInvite) return;
-            $('modal-invite-received').style.display = 'none';
-            socket.emit('battle_join_request', { room_code: pendingInvite.room_code });
-            pendingInvite = null;
-        });
-
-        $('btn-decline-invite').addEventListener('click', () => {
-            $('modal-invite-received').style.display = 'none';
-            pendingInvite = null;
-        });
-
-        /* ── Leave waiting room ── */
-        $('btn-leave-waiting').addEventListener('click', () => {
-            if (currentRoom) socket.emit('battle_leave', { room_code: currentRoom });
-            currentRoom = null;
-            showScreen('screen-entry');
-        });
-
-        /* ══ HOST JOIN REQUEST MODAL ══════════════════════════════════ */
-        let pendingUserId = null;
-
-        socket.on('battle_join_request_notify', data => {
-            pendingUserId = data.user_id;
-            $('req-name').textContent = data.name;
-            $('modal-join-req').style.display = 'flex';
-        });
-
-        $('btn-accept').addEventListener('click', () => {
-            $('modal-join-req').style.display = 'none';
-            socket.emit('battle_join_response', { room_code: currentRoom, accepted: true });
-        });
-        $('btn-reject').addEventListener('click', () => {
-            $('modal-join-req').style.display = 'none';
-            socket.emit('battle_join_response', { room_code: currentRoom, accepted: false });
-        });
-
-        /* ══ BATTLE STARTED ══════════════════════════════════════════ */
-        socket.on('battle_started', data => {
-            // Transition to battle UI
-            showScreen('screen-battle');
-            const mode = data.mode || '1v1';
-            $('mode-badge').textContent = mode;
-            $('room-display').textContent = currentRoom;
-
-            // Show team scoreboard for team modes
-            if (mode !== '1v1') {
-                $('team-scorebar').style.display = 'flex';
-                if (data.teams) {
-                    const teamInfo = `Team A: ${(data.teams.A || []).join(', ')} | Team B: ${(data.teams.B || []).join(', ')}`;
-                    addChatMessage('ByteBot', `⚔️ Teams: ${teamInfo}`, 'system');
-                }
-            }
-
-            if (data.config) {
-                $('lang-display').textContent = data.config.language || 'Python';
-                $('status-display').textContent = 'BATTLE';
-                $('status-display').style.background = '#ef4444';
-            }
-
-            if (data.problem) {
-                $('problem-title').textContent = data.problem.title || 'Problem';
-                $('problem-desc').textContent  = data.problem.description || '';
-                if (data.problem.examples && data.problem.examples.length > 0) {
-                    $('prob-in').textContent  = data.problem.examples[0].input || '';
-                    $('prob-out').textContent = data.problem.examples[0].output || '';
-                    $('problem-details').classList.remove('hidden');
-                }
-            }
-        });
-
-        /* ══ TEAM SCORE UPDATE ════════════════════════════════════════ */
-        socket.on('battle_team_scores', data => {
-            if ($('score-team-a')) $('score-team-a').textContent = data.A || 0;
-            if ($('score-team-b')) $('score-team-b').textContent = data.B || 0;
-        });
-
-        /* ══ BATTLE RESULT ════════════════════════════════════════════ */
-        socket.on('battle_result', data => {
-            $('status-display').textContent = 'RESULT';
-            $('status-display').style.background = '#f59e0b';
-
-            const winnerText = data.winning_team
-                ? `Team ${data.winning_team} wins!`
-                : (data.winner || 'Draw');
-            $('res-winner').textContent = `🏆 ${winnerText}`;
-            $('res-reason').textContent = data.summary || JSON.stringify(data.feedback || '', null, 2);
-
-            // XP display
-            if (data.xp_awarded) {
-                const xpParts = Object.entries(data.xp_awarded).map(([n, v]) => `${n}: +${v} Battle XP`);
-                $('res-xp').textContent = xpParts.join(' · ');
-            }
-
-            // Team scores for team modes
-            if (data.team_scores) {
-                $('res-team-scores').style.display = 'flex';
-                $('res-score-a').textContent = data.team_scores.A || 0;
-                $('res-score-b').textContent = data.team_scores.B || 0;
-            }
-
-            $('modal-result').style.display = 'flex';
-        });
-
-        $('btn-vote-yes').addEventListener('click', () => {
-            socket.emit('battle_rematch_vote', { room_code: currentRoom, vote: 'yes' });
-            $('vote-status').textContent = 'You voted YES. Waiting for others…';
-        });
-        $('btn-vote-no').addEventListener('click', () => {
-            socket.emit('battle_rematch_vote', { room_code: currentRoom, vote: 'no' });
-        });
-
-        socket.on('battle_rematch_declined', () => {
-            $('modal-result').style.display = 'none';
-            currentRoom = null;
-            showScreen('screen-entry');
-        });
-
-        socket.on('battle_restart', () => {
-            $('modal-result').style.display = 'none';
-            $('code-editor').value = '';
-            $('problem-title').textContent = 'Waiting for host…';
-            $('problem-desc').textContent  = 'The battle has not started yet.';
-            $('problem-details').classList.add('hidden');
-            $('status-display').textContent = 'WAITING';
-            $('status-display').style.background = '';
-            showScreen('screen-waiting');
-        });
-
-        /* ══ MISC EVENTS ══════════════════════════════════════════════ */
-        socket.on('battle_room_closed', data => {
-            showNotification('🚫 ' + (data.reason || 'Room closed.'), 'error');
-            setTimeout(() => { currentRoom = null; showScreen('screen-entry'); }, 2500);
-        });
-
-        socket.on('battle_error', data => {
-            showNotification('❌ ' + data.message, 'error');
-        });
-
-        /* ══ RECONNECT / REJOIN ══════════════════════════════════════ */
-        socket.on('battle_rejoined', data => {
-            currentRoom = data.room_code;
-            if (data.state === 'waiting') {
-                enterWaitingRoom({ room_code: data.room_code, mode: data.mode, visibility: 'public',
-                                   slots_total: data.slots_total, slots_filled: data.slots_filled });
-                updateTeamLists(data.players || {});
-            } else {
-                showScreen('screen-battle');
-            }
-        });
-    });
-
-    /* ── Notification helper ── */
-    function showNotification(msg, type = 'info') {
-        const n = document.createElement('div');
-        const colors = { info: '#3b82f6', success: '#4ade80', error: '#ef4444' };
-        n.style.cssText = `position:fixed;top:80px;right:20px;background:${colors[type]||colors.info};color:white;padding:12px 20px;border-radius:8px;z-index:9999;font-size:0.9rem;box-shadow:0 4px 12px rgba(0,0,0,0.4);max-width:300px;`;
-        n.textContent = msg;
-        document.body.appendChild(n);
-        setTimeout(() => n.remove(), 4000);
-    }
-
-    /* ── addChatMessage (used above) ── */
-    function addChatMessage(sender, message, type) {
-        const log = document.getElementById('chat-log');
-        if (!log) return;
-        const div = document.createElement('div');
-        div.className = `chat-message ${type === 'system' ? 'system-message' : ''}`;
-        div.innerHTML = `<strong>${sender}:</strong> ${message}`;
-        log.appendChild(div);
-        log.scrollTop = log.scrollHeight;
-    }
-
-    window._showBattleNotification = showNotification;
-
-})();
-</script>
-
-<!-- Extra styles for new UI elements -->
 <style>
 @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-.mode-btn, .vis-btn { background: #222; color: var(--battle-text-dim); border: 1px solid #444; padding: 6px 18px; border-radius: 20px; cursor: pointer; transition: all 0.2s; }
-.mode-btn.active, .vis-btn.active { background: var(--battle-accent); color: white; border-color: var(--battle-accent); }
+.mode-btn, .vis-btn {
+    background: #222; color: var(--battle-text-dim);
+    border: 1px solid #444; padding: 6px 18px;
+    border-radius: 20px; cursor: pointer; transition: all 0.2s;
+}
+.mode-btn.active, .vis-btn.active {
+    background: var(--battle-accent); color: white; border-color: var(--battle-accent);
+}
 #team-scorebar { display: none; }
 </style>
 {% endblock %}
