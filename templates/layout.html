@@ -561,6 +561,12 @@
         }
     </style>
     {% block scripts %}{% endblock %}
+    <!-- 🎨 Theme Particle Effects (Matrix rain, sakura, etc.) -->
+    <script>
+        // Expose active theme to particles.js immediately — avoids async API fetch delay
+        window.ACTIVE_THEME = "{{ active_theme if active_theme else '' }}";
+    </script>
+    <script src="{{ url_for('static', filename='js/particles.js') }}"></script>
     <div id="xpModal"
         style="display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; place-items: center; opacity: 0; transition: opacity 0.2s;">
         <div style="background: var(--bg-card); padding: 24px; border-radius: 16px; width: 90%; max-width: 350px; border: 1px solid var(--border); box-shadow: 0 10px 40px rgba(0,0,0,0.5); transform: scale(0.95); transition: transform 0.2s;"
