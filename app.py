@@ -4254,6 +4254,12 @@ def leaderboard():
 def settings():
     return profile(current_user.id)
 
+@app.route('/profile')
+@login_required
+def profile_redirect():
+    """Redirect /profile (no ID) to the current user's profile page."""
+    return redirect(url_for('profile', user_id=current_user.id))
+
 @app.route('/profile/<int:user_id>')
 @login_required
 def profile(user_id):
@@ -4493,6 +4499,7 @@ def profile_upload_cover():
     
     return jsonify({'error': 'Upload failed'}), 500
 
+@app.route('/settings/upload_photo', methods=['POST'])
 @app.route('/profile/upload_photo', methods=['POST'])
 @login_required
 def profile_upload_photo():
@@ -4529,6 +4536,7 @@ def profile_upload_photo():
     })
 
 
+@app.route('/settings/upload_dashboard_video', methods=['POST'])
 @app.route('/profile/upload_dashboard_video', methods=['POST'])
 @login_required
 def profile_upload_dashboard_video():

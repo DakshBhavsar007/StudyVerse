@@ -26,7 +26,9 @@ class ParticleSystem {
         this.canvas.style.width = '100%';
         this.canvas.style.height = '100%';
         this.canvas.style.pointerEvents = 'none';
-        this.canvas.style.zIndex = '9997'; // Just behind the CSS overlay (9998) if any, or matching it
+        // z-index 9999 ensures particles render on top of all page content.
+        // pointer-events: none means they won't block any clicks or interactions.
+        this.canvas.style.zIndex = '9999';
         document.body.appendChild(this.canvas);
 
         // Resize Listener
@@ -133,6 +135,7 @@ class ParticleSystem {
             p.speed = 2 + Math.random() * 3;
             p.size = 10 + Math.random() * 10;
             p.color = '#22c55e';
+            p.opacity = 0.7 + Math.random() * 0.3; // High opacity so rain is clearly visible
         } else if (this.activeTheme === 'synthwave') {
             // Music Symbols
             const notes = ["♪", "♫", "♩", "♬", "♭"];
@@ -367,6 +370,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         stale.forEach(c => document.body.classList.remove(c));
         // Add new class — MutationObserver fires → updateTheme() → resetParticles()
         document.body.classList.add(themeId);
+        // Direct call as safety fallback in case MutationObserver is slow
+        if (window.particleSystem) {
+            window.particleSystem.updateTheme();
+        }
     }
 
     // Option 1: layout.html set window.ACTIVE_THEME (optional but instant)
@@ -375,7 +382,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
-    // Option 2: fetch from API (works on every page, zero layout.html changes needed)
+    // Option 2: body already has theme class set by layout.html inline
+    const existingTheme = [...document.body.classList].find(c => c.startsWith('theme_'));
+    if (existingTheme) {
+        if (window.particleSystem) {
+            window.particleSystem.updateTheme();
+        }
+        return;
+    }
+
+    // Option 3: fetch from API (works on every page, zero layout.html changes needed)
     try {
         const res  = await fetch('/api/user/theme');
         const data = await res.json();
