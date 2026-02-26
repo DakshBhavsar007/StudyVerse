@@ -114,8 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = true;
         const btn = $('btn-create'); if (btn) { btn.textContent='Create Room'; btn.disabled=false; }
         enterWaiting(data);
-        showTeamBadge('A');  // host is always assigned team A initially
-        // Tell server we're in the UI so join_room is called in our socket context
+        showTeamBadge('A');
         socket.emit('battle_entered', { room_code: currentRoom });
     });
 
@@ -205,14 +204,14 @@ document.addEventListener('DOMContentLoaded', () => {
     function showTeamBadge(team) {
         const wr = $('wr-slots');
         if (!wr) return;
-        const existing = wr.parentNode.querySelector('.team-badge');
-        if (existing) existing.remove();
-        const badge = document.createElement('div');
-        badge.className = 'team-badge';
+        const old = wr.parentNode.querySelector('.team-badge');
+        if (old) old.remove();
+        const b = document.createElement('div');
+        b.className = 'team-badge';
         const isA = team === 'A';
-        badge.style.cssText = `margin-top:0.75rem;padding:5px 16px;border-radius:16px;font-size:0.85rem;font-weight:700;display:inline-block;${isA ? 'background:rgba(96,165,250,0.2);color:#60a5fa;border:1px solid #60a5fa;' : 'background:rgba(248,113,113,0.2);color:#f87171;border:1px solid #f87171;'}`;
-        badge.textContent = `You are on Team ${team}`;
-        wr.parentNode.insertBefore(badge, wr.nextSibling);
+        b.style.cssText = `margin-top:0.75rem;padding:5px 16px;border-radius:16px;font-size:0.85rem;font-weight:700;display:inline-block;${isA?'background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid #60a5fa':'background:rgba(248,113,113,.2);color:#f87171;border:1px solid #f87171'}`;
+        b.textContent = `You are on Team ${team}`;
+        wr.parentNode.insertBefore(b, wr.nextSibling);
     }
 
     socket.on('battle_player_joined', data => {
@@ -233,10 +232,9 @@ document.addEventListener('DOMContentLoaded', () => {
             visibility: data.visibility || 'public',
             slots_total: data.slots_total, slots_filled: data.slots_filled
         });
-        setTeams(data.players || {});
+        setTeams(data.players||{});
         if (data.your_team) showTeamBadge(data.your_team);
-        dbg('Joined room ' + data.room_code + ' Team ' + data.your_team);
-        // Tell server we're in the waiting room UI — this triggers join_room on server
+        dbg('Joined room ' + data.room_code + ' as Team ' + data.your_team);
         socket.emit('battle_entered', { room_code: data.room_code });
     });
 
@@ -244,13 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
         currentRoom = data.room_code;
         sessionStorage.setItem('battle_room_code', currentRoom);
         const state = data.state || 'waiting';
-        dbg('Rejoined state: ' + state);
-
+        dbg('Rejoined state=' + state);
         if (state === 'battle') {
-            // Restore full battle screen with existing problem
-            const badge=$('mode-badge'); if(badge) badge.textContent = data.mode||'1v1';
-            const rd=$('room-display'); if(rd) rd.textContent = currentRoom;
-            if(data.config){ const ld=$('lang-display'); if(ld) ld.textContent=data.config.language||'Python'; }
+            const badge=$('mode-badge'); if(badge) badge.textContent=data.mode||'1v1';
+            const rd=$('room-display'); if(rd) rd.textContent=currentRoom;
+            if(data.config){const ld=$('lang-display');if(ld)ld.textContent=data.config.language||'Python';}
             if(data.problem){
                 const pt=$('problem-title'),pd=$('problem-desc');
                 if(pt) pt.textContent=data.problem.title||'Problem';
@@ -258,15 +254,13 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             setStatus('BATTLE IN PROGRESS');
             showScreen('screen-battle');
-            chatMsg('ByteBot','🔄 Reconnected to active battle!','system');
-        } else if (state === 'starting' || state === 'ready') {
-            // Room is starting — show waiting, battle_started will arrive soon
+            chatMsg('ByteBot','🔄 Reconnected!','system');
+        } else if (state === 'ready' || state === 'starting') {
             enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public',
                 slots_total:data.slots_total||2, slots_filled:data.slots_filled||2 });
             setTeams(data.players||{});
-            chatMsg('ByteBot','⏳ Battle is about to start, hang tight...','system');
+            chatMsg('ByteBot','⏳ Battle starting soon...','system');
         } else {
-            // Normal waiting state
             enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public',
                 slots_total:data.slots_total||2, slots_filled:data.slots_filled||1 });
             setTeams(data.players||{});
@@ -332,16 +326,13 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ════════════════════════════════════
        BATTLE SCREEN
     ════════════════════════════════════ */
-    // Server ack: tells THIS player their team and room status
     socket.on('battle_room_status', data => {
         if (data.your_team) showTeamBadge(data.your_team);
-        setTeams(Object.fromEntries([
-            ...(data.team_a||[]).map(n => [n, {name:n, team:'A'}]),
-            ...(data.team_b||[]).map(n => [n, {name:n, team:'B'}])
-        ]));
+        const players = {};
+        (data.team_a||[]).forEach(n => players[n] = {name:n, team:'A'});
+        (data.team_b||[]).forEach(n => players[n] = {name:n, team:'B'});
+        setTeams(players);
         buildSlots(data.slots_filled||1, data.slots_total||2);
-        const ml = $('wr-mode-label');
-        if (ml) ml.textContent = ml.textContent.replace(/\d+\/\d+/, `${data.slots_filled}/${data.slots_total}`);
         dbg(`In room. Team ${data.your_team}. ${data.slots_filled}/${data.slots_total}`);
     });
 
@@ -349,43 +340,30 @@ document.addEventListener('DOMContentLoaded', () => {
         dbg('Battle started!');
         if (data.room_code && !currentRoom) currentRoom = data.room_code;
         const mode = data.mode || '1v1';
-
-        // Set up header
-        const badge=$('mode-badge'); if(badge) badge.textContent = mode;
-        const rd=$('room-display'); if(rd) rd.textContent = currentRoom;
-        const ld=$('lang-display'); if(data.config && ld) ld.textContent = data.config.language || 'Python';
+        const badge=$('mode-badge'); if(badge) badge.textContent=mode;
+        const rd=$('room-display'); if(rd) rd.textContent=currentRoom;
+        if(data.config){const ld=$('lang-display');if(ld)ld.textContent=data.config.language||'Python';}
         setStatus('BATTLE IN PROGRESS');
-
-        // Team scoreboard (2v2 / 3v3)
         const sb=$('team-scorebar');
-        if (mode !== '1v1' && sb) {
-            sb.style.display = 'flex';
-            if (data.teams) chatMsg('ByteBot',
-                `⚔️ Teams:\n🔵 Team A: ${(data.teams.A||[]).join(', ')}\n🔴 Team B: ${(data.teams.B||[]).join(', ')}`,
-                'system');
+        if(mode!=='1v1'&&sb){
+            sb.style.display='flex';
+            if(data.teams) chatMsg('ByteBot',`⚔️ Teams:\n🔵 A: ${(data.teams.A||[]).join(', ')}\n🔴 B: ${(data.teams.B||[]).join(', ')}`,'system');
         }
-
-        // Load problem
-        if (data.problem) {
-            const pt=$('problem-title'), pd=$('problem-desc'), pp=$('problem-details');
-            const pi=$('prob-in'), po=$('prob-out');
-            if(pt) pt.textContent = data.problem.title || 'Problem';
-            if(pd) pd.textContent = data.problem.description || '';
-            if(data.problem.examples && data.problem.examples.length && pi && po) {
-                pi.textContent = data.problem.examples[0].input  || '';
-                po.textContent = data.problem.examples[0].output || '';
+        if(data.problem){
+            const pt=$('problem-title'),pd=$('problem-desc'),pp=$('problem-details'),pi=$('prob-in'),po=$('prob-out');
+            if(pt) pt.textContent=data.problem.title||'Problem';
+            if(pd) pd.textContent=data.problem.description||'';
+            if(data.problem.examples&&data.problem.examples.length&&pi&&po){
+                pi.textContent=data.problem.examples[0].input||'';
+                po.textContent=data.problem.examples[0].output||'';
                 if(pp) pp.classList.remove('hidden');
             }
         }
-
-        const ce=$('code-editor'), sb2=$('btn-submit');
-        if(ce) ce.value = '';
-        if(sb2) { sb2.disabled=false; sb2.textContent='SUBMIT CODE'; }
-
+        const ce=$('code-editor'),sb2=$('btn-submit');
+        if(ce) ce.value='';
+        if(sb2){sb2.disabled=false;sb2.textContent='SUBMIT CODE';}
         if(data.duration) startTimer(data.duration);
-
-        // Switch screen LAST — ensures all UI is ready before showing
-        showScreen('screen-battle');
+        showScreen('screen-battle');  // LAST — all UI ready before showing
     });
 
     /* ── Chat input ── */
