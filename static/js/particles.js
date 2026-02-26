@@ -1,4 +1,3 @@
-
 /**
  * StudyVerse Procedural Particle System
  * Renders infinite falling background animations based on the active theme.
@@ -124,6 +123,7 @@ class ParticleSystem {
             rotation: Math.random() * 360,
             rotationSpeed: (Math.random() - 0.5) * 2,
             oscillation: Math.random() * Math.PI * 2,
+            oscillationSpeed: 0.02,
             type: this.activeTheme
         };
 
@@ -176,7 +176,7 @@ class ParticleSystem {
 
         // ... (Keep existing logic for others or default) ...
         // Re-adding default fallback for others to ensure specific overrides work
-        if (!p.color && !p.char) {
+        if (!p.color) {
             // Fallbacks for other themes
             if (this.activeTheme === 'cyberpunk') {
                 p.color = Math.random() > 0.5 ? '#d946ef' : '#06b6d4';
@@ -184,7 +184,7 @@ class ParticleSystem {
                 p.w = Math.random() * 20 + 5;
                 p.h = Math.random() * 2 + 1;
             } else if (this.activeTheme === 'neon_city') {
-                p.color = '#06b6d4';
+                p.color = ['#06b6d4', '#f0abfc', '#fbbf24', '#34d399'][Math.floor(Math.random()*4)];
                 p.speed = 15 + Math.random() * 10;
                 p.w = 1;
                 p.h = 20 + Math.random() * 20;
@@ -194,10 +194,12 @@ class ParticleSystem {
             } else if (this.activeTheme === 'ocean') {
                 p.color = Math.random() > 0.5 ? '#38bdf8' : '#7dd3fc';
                 p.size = 2 + Math.random() * 3;
+            } else if (this.activeTheme === 'forest') {
+                p.color = '#4ade80';
+                p.size = 4 + Math.random() * 4;
             } else {
-                // Defaults for Forest, etc.
                 p.color = '#ffffff';
-                if (this.activeTheme === 'forest') p.color = '#4ade80';
+                p.size = p.size || (2 + Math.random() * 2);
             }
         }
 
@@ -355,5 +357,16 @@ class ParticleSystem {
 
 // Initialize on load
 document.addEventListener('DOMContentLoaded', () => {
+    // Apply the active theme class from server-side template variable.
+    // layout.html should pass `active_theme` via a global JS variable like:
+    //   <script>window.ACTIVE_THEME = "{{ active_theme }}";</script>
+    // If that variable exists and is set, apply the class to body now.
+    if (window.ACTIVE_THEME && window.ACTIVE_THEME !== 'None' && window.ACTIVE_THEME !== '') {
+        // Remove any existing theme_ classes first
+        const existingTheme = [...document.body.classList].find(c => c.startsWith('theme_'));
+        if (existingTheme) document.body.classList.remove(existingTheme);
+        // Add the active theme class
+        document.body.classList.add(window.ACTIVE_THEME);
+    }
     window.particleSystem = new ParticleSystem();
 });
