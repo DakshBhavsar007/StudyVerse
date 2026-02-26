@@ -393,10 +393,18 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('battle_restart', () => {
+        // Server will auto-start; just close the result modal and wait for battle_started
         const mr=$('modal-result'); if(mr) mr.style.display='none';
         const ce=$('code-editor'),pt=$('problem-title'),pd=$('problem-desc'),pp=$('problem-details');
-        if(ce) ce.value=''; if(pt) pt.textContent='Waiting for host…'; if(pd) pd.textContent='Not started.'; if(pp) pp.classList.add('hidden');
-        setStatus('WAITING'); showScreen('screen-waiting');
+        if(ce) ce.value='';
+        if(pt) pt.textContent='Loading new problem…';
+        if(pd) pd.textContent='Rematch starting…';
+        if(pp) pp.classList.add('hidden');
+        setStatus('REMATCH STARTING…');
+        // Reset scores display
+        const sa=$('score-team-a'),sb=$('score-team-b');
+        if(sa) sa.textContent='0'; if(sb) sb.textContent='0';
+        const sbtn=$('btn-submit'); if(sbtn){sbtn.disabled=true; sbtn.textContent='SUBMIT CODE';}
     });
 
     /* ════════════════════════════════════

@@ -4737,6 +4737,9 @@ def start_battle_task(room_code):
         },
     }, room=room_code)
 
+    # Emit initial team scores (both 0) so scoreboard resets properly
+    socketio.emit('battle_team_scores', {'A': 0, 'B': 0}, room=room_code)
+
 
 # ============================================================================
 # SOCKET.IO – SUBMISSION & JUDGING
@@ -4959,18 +4962,26 @@ def on_battle_rematch_vote(data):
         return
 
     if len(room['rematch_votes']) >= len(room['players']) and all(v == 'yes' for v in room['rematch_votes'].values()):
-        # Reset for rematch
-        room['state']       = 'waiting'
-        room['problem']     = None
-        room['submissions'] = {}
+        # Reset for rematch and auto-start
+        room['state']        = 'waiting'
+        room['problem']      = None
+        room['submissions']  = {}
         room['rematch_votes']= {}
-        room['scores']      = {pid: 0 for pid in room['players']}
-        socketio.emit('battle_restart', {}, room=room_code)
+        room['scores']       = {pid: 0 for pid in room['players']}
+        # Keep same config but ensure difficulty/language are set
+        config = room.get('config', {})
+        if not config.get('difficulty'):
+            config['difficulty'] = random.choice(['Easy', 'Medium', 'Hard'])
+        if not config.get('language'):
+            config['language'] = random.choice(['Python', 'JavaScript', 'Java', 'C++'])
+        room['config'] = config
         socketio.emit('battle_chat_message', {
             'sender': 'ByteBot',
-            'message': "🔁 Rematch starting! Host, configure and type /start.",
+            'message': "🔁 All agreed! Rematch starting in 3 seconds…",
             'type': 'system'
         }, room=room_code)
+        # Auto-start the rematch
+        socketio.start_background_task(start_battle_task, room_code)
 
 
 @socketio.on('battle_heartbeat')
