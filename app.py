@@ -6657,35 +6657,34 @@ def setup_admin_panel_once():
         existing_admin = User.query.filter_by(email='admin@studyverse.com').first()
         
         if existing_admin and existing_admin.is_admin:
+            # Always reset password — useful as an emergency recovery tool
+            from werkzeug.security import generate_password_hash
+            existing_admin.password_hash = generate_password_hash('StudyVerse@007')
+            existing_admin.is_admin = True
+            db.session.commit()
             return """
             <html>
             <head>
-                <title>Admin Panel Already Setup</title>
+                <title>Admin Password Reset</title>
                 <style>
                     body { font-family: Arial, sans-serif; max-width: 600px; margin: 100px auto; padding: 20px; background: #0f172a; color: #e2e8f0; }
                     .container { background: #1e293b; padding: 40px; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
                     h1 { color: #10b981; margin-bottom: 20px; }
                     .info { background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; padding: 16px; border-radius: 8px; margin: 20px 0; }
+                    code { background: #334155; padding: 4px 8px; border-radius: 4px; color: #3b82f6; }
                     a { color: #3b82f6; text-decoration: none; font-weight: 600; }
                     a:hover { text-decoration: underline; }
                 </style>
             </head>
             <body>
                 <div class="container">
-                    <h1>✅ Admin Panel Already Setup!</h1>
+                    <h1>✅ Admin Password Reset!</h1>
                     <div class="info">
-                        <p><strong>Admin account already exists and is ready to use.</strong></p>
+                        <p><strong>Admin password has been reset successfully.</strong></p>
                         <p>Email: <code>admin@studyverse.com</code></p>
+                        <p>Password: <code>StudyVerse@007</code></p>
                     </div>
-                    <p>You can now:</p>
-                    <ol>
-                        <li><a href="/">Go to homepage</a></li>
-                        <li>Login with admin credentials</li>
-                        <li><a href="/admin">Access admin panel</a></li>
-                    </ol>
-                    <p style="margin-top: 30px; color: #94a3b8; font-size: 14px;">
-                        This setup route is now disabled since admin already exists.
-                    </p>
+                    <p>You can now <a href="/auth">sign in here</a> or go to the <a href="/admin">admin panel</a>.</p>
                 </div>
             </body>
             </html>
@@ -7797,8 +7796,27 @@ def get_streak():
 #
 # Both operations are idempotent: safe to run on every startup, will silently
 # skip if tables / columns already exist. No Flask-Migrate required.
+#
+# ⚠️  IMPORTANT: We use a one-shot @app.before_request handler instead of a
+#     bare `with app.app_context()` block so the DB work runs AFTER eventlet
+#     and gunicorn are fully initialised — avoiding the
+#     "do not call blocking functions from the mainloop" crash.
 # ============================================================================
-with app.app_context():
+
+_DB_INIT_DONE = False
+
+@app.before_request
+def _run_db_init_once():
+    """
+    One-shot startup: runs DB migrations + admin seed on the very first
+    request after each deploy.  The global flag ensures it only executes once
+    per worker lifetime.
+    """
+    global _DB_INIT_DONE
+    if _DB_INIT_DONE:
+        return
+    _DB_INIT_DONE = True
+
     # Step 1: Create any new tables that don't exist yet
     try:
         db.create_all()
@@ -7834,7 +7852,7 @@ with app.app_context():
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS banned_by INTEGER REFERENCES \"user\"(id)",
          'ALTER TABLE "user" ADD COLUMN banned_by INTEGER'),
 
-        # ── ⚔️  Byte Battle columns (NEW) ────────────────────────────────────
+        # ── ⚔️  Byte Battle columns ───────────────────────────────────────────
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_xp INTEGER DEFAULT 0",
          'ALTER TABLE "user" ADD COLUMN battle_xp INTEGER DEFAULT 0'),
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_wins INTEGER DEFAULT 0",
@@ -7861,7 +7879,34 @@ with app.app_context():
             else:
                 print(f"⚠️  Migration warning: {_col_err}")
 
-    print("✅  DB migrations complete (battle_xp / battle_wins / battle_losses / battle_draws included).")
+    print("✅  DB migrations complete.")
+
+    # Step 3: Ensure admin account exists with the correct password.
+    # Runs on every deploy to fix any corrupted/wrong hash automatically.
+    try:
+        from werkzeug.security import generate_password_hash
+        _admin = User.query.filter_by(email='admin@studyverse.com').first()
+        if not _admin:
+            _admin = User(
+                email='admin@studyverse.com',
+                password_hash=generate_password_hash('StudyVerse@007'),
+                first_name='Admin',
+                last_name='User',
+                is_admin=True,
+                total_xp=0,
+                level=1
+            )
+            db.session.add(_admin)
+            db.session.commit()
+            print("✅  Admin account created: admin@studyverse.com")
+        else:
+            _admin.password_hash = generate_password_hash('StudyVerse@007')
+            _admin.is_admin = True
+            db.session.commit()
+            print("✅  Admin account verified & password synced: admin@studyverse.com")
+    except Exception as _admin_err:
+        db.session.rollback()
+        print(f"⚠️  Admin ensure error: {_admin_err}")
 
 
 # ============================================================================
