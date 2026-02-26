@@ -4162,7 +4162,7 @@ def battle():
 
 battles = {}          # room_code -> room dict
 matchmaking_queue = {}  # mode -> list of {user_id, sid, rank_name, joined_at}
-pending_invites = {}    # user_id -> list of pending invite dicts for offline users
+pending_invites = {}    # user_id -> list of invite dicts for users not yet on battle page
 
 BATTLE_RANK_ORDER = ['Recruit','Bronze','Silver','Gold','Platinum','Diamond','Heroic','Master','Grandmaster']
 
@@ -4182,10 +4182,7 @@ def get_total_slots(mode):
     return get_team_size(mode) * 2
 
 def assign_teams(players_dict, mode):
-    """
-    Randomly assign players to Team A / Team B.
-    Shuffles player list then splits: first half → A, second half → B.
-    """
+    """Randomly assign players to Team A / Team B."""
     import random
     team_size = get_team_size(mode)
     ids = list(players_dict.keys())
@@ -4403,7 +4400,7 @@ def on_battle_create(data):
 
 @socketio.on('battle_invite_friend')
 def on_battle_invite_friend(data):
-    """Host sends a direct invite to a friend."""
+    """Host sends a direct invite to a friend (works for all modes and visibility)."""
     if not current_user.is_authenticated:
         return
     room_code = data.get('room_code', '').strip().upper()
@@ -4412,12 +4409,10 @@ def on_battle_invite_friend(data):
     if room_code not in battles:
         emit('battle_error', {'message': 'Room not found.'})
         return
-
     room = battles[room_code]
     if room['host'] != current_user.id:
         emit('battle_error', {'message': 'Only the host can invite players.'})
         return
-
     if not friend_id:
         return
 
@@ -4427,13 +4422,10 @@ def on_battle_invite_friend(data):
         'mode': room['mode'],
         'visibility': room.get('visibility', 'public')
     }
-
-    # Emit to friend's personal socket room (works if they're already connected)
+    # Emit to friend's personal room if they're online
     socketio.emit('battle_invite_received', invite_data, room=f'user_{friend_id}')
-
-    # Also store as pending so it's delivered when they open the battle page
-    if friend_id not in pending_invites:
-        pending_invites[friend_id] = []
+    # Also store so it's delivered when they open the battle page
+    pending_invites.setdefault(friend_id, [])
     pending_invites[friend_id] = [i for i in pending_invites[friend_id] if i.get('room_code') != room_code]
     pending_invites[friend_id].append(invite_data)
 
@@ -4448,7 +4440,6 @@ def on_battle_rejoin_attempt(data):
         return
     room_code = data.get('room_code', '').strip().upper()
     if room_code not in battles:
-        # Room gone — silently clear client state, don't show error
         emit('battle_room_expired', {})
         return
     room = battles[room_code]
@@ -4456,7 +4447,7 @@ def on_battle_rejoin_attempt(data):
         room['players'][current_user.id]['sid'] = request.sid
         join_room(room_code)
         emit('battle_rejoined', {
-            'state': room['state'],   # 'waiting' | 'starting' | 'battle'
+            'state': room['state'],
             'room_code': room_code,
             'mode': room['mode'],
             'slots_total': get_total_slots(room['mode']),
@@ -4483,8 +4474,12 @@ def on_battle_join_request(data):
     room = battles[room_code]
     total_slots = get_total_slots(room['mode'])
 
-    if len(room['players']) >= total_slots or room['state'] in ('starting', 'battle'):
-        emit('battle_error', {'message': 'Room is full or battle already started.'})
+    if room['state'] in ('starting', 'battle'):
+        emit('battle_error', {'message': 'Battle already started in this room.'})
+        return
+
+    if len(room['players']) >= total_slots:
+        emit('battle_error', {'message': 'Room is full.'})
         return
 
     # Already in room?
@@ -4516,18 +4511,24 @@ def on_battle_join_request(data):
 
 
 def _add_player_to_room(room_code, user_id, name, sid):
-    """Add a player to the room, assign team, and notify everyone."""
+    """Add a player to the room, assign teams, notify everyone."""
     room = battles[room_code]
-    room['players'][user_id] = {'name': name, 'sid': sid, 'joined_at': datetime.utcnow(), 'team': None}
+    room['players'][user_id] = {
+        'name': name, 'sid': sid,
+        'joined_at': datetime.utcnow(), 'team': None
+    }
     room['scores'][user_id] = 0
-    assign_teams(room['players'], room['mode'])
 
-    join_room(room_code, sid=sid)
+    # Random team assignment every time a player joins
+    assign_teams(room['players'], room['mode'])
 
     total_slots = get_total_slots(room['mode'])
     slots_filled = len(room['players'])
 
-    # Tell the joining player their room + team
+    # Have the joining player join the socket room themselves (reliable)
+    # We do NOT use join_room(room_code, sid=sid) — that's unreliable across contexts.
+    # Instead we send battle_enter_room to their sid so their client calls battle_entered,
+    # which triggers join_room() within their own socket context.
     socketio.emit('battle_enter_room', {
         'room_code': room_code,
         'mode': room['mode'],
@@ -4538,7 +4539,7 @@ def _add_player_to_room(room_code, user_id, name, sid):
         'slots_filled': slots_filled
     }, room=sid)
 
-    # Notify ALL players of updated roster
+    # Notify ALL existing players of new roster (host is already in room)
     socketio.emit('battle_player_joined', {
         'name': name,
         'players': {str(k): {'name': v['name'], 'team': v['team']} for k, v in room['players'].items()},
@@ -4548,37 +4549,16 @@ def _add_player_to_room(room_code, user_id, name, sid):
 
     print(f"[Battle] {name} joined {room_code}. {slots_filled}/{total_slots}")
 
-    # Auto-start when room is full
+    # If room is now full, set state to 'ready' and let battle_entered (from the joining client)
+    # trigger the start — this avoids background-task/socket-room race conditions
     if slots_filled >= total_slots and room['state'] == 'waiting':
         import random
         if not room['config']['difficulty']:
             room['config']['difficulty'] = random.choice(['Easy', 'Medium', 'Hard'])
         if not room['config']['language']:
             room['config']['language'] = random.choice(['Python', 'JavaScript', 'Java', 'C++'])
-
-        diff = room['config']['difficulty']
-        lang = room['config']['language']
-
-        socketio.emit('battle_chat_message', {
-            'sender': 'ByteBot',
-            'message': (
-                f"🎮 Room full! All {total_slots} players ready.\n"
-                f"⚡ Difficulty: **{diff}** | Language: **{lang}**\n"
-                "🚀 Battle starts in 5 seconds..."
-            ),
-            'type': 'system'
-        }, room=room_code)
-
-        # Mark as 'starting' to prevent duplicate starts from reconnect races
-        room['state'] = 'starting'
-
-        def delayed_start():
-            import eventlet
-            eventlet.sleep(5)
-            r = battles.get(room_code)
-            if r and r['state'] == 'starting':
-                start_battle_task(room_code)
-        socketio.start_background_task(delayed_start)
+        room['state'] = 'ready'   # signals battle_entered to fire start_battle_task
+        print(f"[Battle] Room {room_code} is READY. Waiting for all clients to confirm join.")
 
 
 @socketio.on('battle_join_response')
@@ -4606,7 +4586,11 @@ def on_battle_join_response(data):
 
 @socketio.on('battle_entered')
 def on_battle_entered(data):
-    """Client confirms they are in the waiting room UI and ready to receive events."""
+    """
+    Client confirms they are in the waiting room UI.
+    This runs in the player's own socket context, so join_room() is reliable here.
+    If the room is in 'ready' state (all players joined), this triggers the battle start.
+    """
     if not current_user.is_authenticated:
         return
     room_code = data.get('room_code', '').strip().upper()
@@ -4616,14 +4600,36 @@ def on_battle_entered(data):
     if current_user.id not in room['players']:
         return
 
-    join_room(room_code)  # ensure socket is in the room
+    # Join the socket room in OUR OWN context — this is reliable
+    join_room(room_code)
+    room['players'][current_user.id]['sid'] = request.sid
+    room['players'][current_user.id]['confirmed'] = True
 
+    print(f"[Battle] {current_user.first_name} confirmed entry to {room_code} (state={room['state']})")
+
+    # Count how many players have confirmed
+    confirmed = sum(1 for p in room['players'].values() if p.get('confirmed'))
+    total_slots = get_total_slots(room['mode'])
+
+    # If room is ready and this player is the LAST to confirm → start battle now
+    if room['state'] == 'ready' and confirmed >= total_slots:
+        room['state'] = 'starting'
+        socketio.emit('battle_chat_message', {
+            'sender': 'ByteBot',
+            'message': (
+                f"🎮 All {total_slots} players connected!\n"
+                f"⚡ Difficulty: **{room['config']['difficulty']}** | Language: **{room['config']['language']}**\n"
+                "🚀 Generating problem and starting battle..."
+            ),
+            'type': 'system'
+        }, room=room_code)
+        # Start immediately in background (problem generation may take a moment)
+        socketio.start_background_task(start_battle_task, room_code)
+        return
+
+    # Otherwise just send them their team status
     team_a = [v['name'] for v in room['players'].values() if v.get('team') == 'A']
     team_b = [v['name'] for v in room['players'].values() if v.get('team') == 'B']
-    total  = get_total_slots(room['mode'])
-    filled = len(room['players'])
-
-    # Only tell THIS player — do NOT broadcast to room (causes screen flicker for others)
     emit('battle_room_status', {
         'room_code': room_code,
         'mode': room['mode'],
@@ -4631,8 +4637,9 @@ def on_battle_entered(data):
         'team_a': team_a,
         'team_b': team_b,
         'your_team': room['players'][current_user.id].get('team', 'A'),
-        'slots_filled': filled,
-        'slots_total': total,
+        'slots_filled': len(room['players']),
+        'slots_total': total_slots,
+        'confirmed': confirmed,
     })
 
 
@@ -4659,7 +4666,7 @@ def on_battle_chat_send(data):
     # System commands
     if message.lower() == '/start' and current_user.id == room['host']:
         total_slots = get_total_slots(room['mode'])
-        if room['state'] == 'battle':
+        if room['state'] in ('battle', 'starting'):
             emit('battle_chat_message', {'sender': 'ByteBot', 'message': '⚠️ Battle already in progress!', 'type': 'system'})
             return
         if len(room['players']) < total_slots:
@@ -4716,12 +4723,13 @@ def on_battle_chat_send(data):
 
 
 def start_battle_task(room_code):
+    """Generate problem and broadcast battle_started to all players in the room."""
     room = battles.get(room_code)
     if not room:
         return
-    # Guard: prevent double-start (auto-start + manual /start both firing)
     if room['state'] == 'battle':
-        return
+        return  # Already started (double-call guard)
+
     config = room['config']
     import random
     if not config['difficulty']:
@@ -4729,7 +4737,7 @@ def start_battle_task(room_code):
     if not config['language']:
         config['language'] = random.choice(['Python', 'JavaScript', 'Java', 'C++'])
 
-    # Finalize random teams right before start
+    # Final random team assignment
     assign_teams(room['players'], room['mode'])
 
     problem = generate_battle_problem(config['difficulty'], config['language'])
@@ -4737,13 +4745,10 @@ def start_battle_task(room_code):
     room['problem']    = problem
     room['start_time'] = datetime.utcnow()
 
-    socketio.emit('battle_chat_message', {
-        'sender': 'ByteBot',
-        'message': f"🚀 Battle starting! Mode: {room['mode']} | {config['difficulty']} {config['language']}",
-        'type': 'system'
-    }, room=room_code)
+    print(f"[Battle] {room_code} STARTED — {config['difficulty']} {config['language']}")
 
     socketio.emit('battle_started', {
+        'room_code': room_code,
         'problem': problem,
         'mode': room['mode'],
         'config': config,
@@ -5031,13 +5036,12 @@ def on_join_personal_room(data):
     """Each user joins a personal Socket.IO room so direct events can reach them."""
     if current_user.is_authenticated:
         join_room(f'user_{current_user.id}')
-        # Deliver any invites that arrived while user was on another page
-        user_invites = pending_invites.pop(current_user.id, [])
-        for invite in user_invites:
+        # Deliver any invites stored while user was on another page
+        for invite in pending_invites.pop(current_user.id, []):
             rc = invite.get('room_code')
             if rc in battles:
                 r = battles[rc]
-                if len(r['players']) < get_total_slots(r['mode']) and r['state'] == 'waiting':
+                if r['state'] == 'waiting' and len(r['players']) < get_total_slots(r['mode']):
                     emit('battle_invite_received', invite)
 
 
