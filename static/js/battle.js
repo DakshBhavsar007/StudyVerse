@@ -295,6 +295,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     socket.on('battle_started', data => {
+        // Close result modal if open (handles rematch flow)
+        const mr=$('modal-result'); if(mr) mr.style.display='none';
         showScreen('screen-battle');
         const mode = data.mode || '1v1';
         const badge=$('mode-badge'), rd=$('room-display'), ld=$('lang-display'), sb=$('team-scorebar');
@@ -302,8 +304,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if(rd) rd.textContent = currentRoom;
         if(data.config && ld) ld.textContent = data.config.language || 'Python';
         setStatus('BATTLE IN PROGRESS');
-        if(mode !== '1v1' && sb) {
-            sb.style.display = 'flex';
+        // Always show score header
+        if(sb) sb.style.display = 'flex';
+        if(mode !== '1v1') {
             if(data.teams) chatMsg('ByteBot',`⚔️ Teams –\n🔵 A: ${(data.teams.A||[]).join(', ')}\n🔴 B: ${(data.teams.B||[]).join(', ')}`,'system');
         }
         if(data.problem) {
@@ -319,6 +322,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const ce=$('code-editor'),sb2=$('btn-submit');
         if(ce) ce.value='';
         if(sb2) { sb2.disabled=false; sb2.textContent='SUBMIT CODE'; }
+        // Reset score displays
+        const sa=$('score-team-a'),sbb=$('score-team-b');
+        if(sa) sa.textContent='0'; if(sbb) sbb.textContent='0';
         if(data.duration) startTimer(data.duration);
     });
 

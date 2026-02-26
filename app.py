@@ -4867,7 +4867,7 @@ def judge_battle(room_code):
             else:
                 for pid in room['players']:
                     pname = room['players'][pid]['name']
-                    _award_battle_xp(pid, draw_xp, won=False)
+                    _award_battle_xp(pid, draw_xp, won=False, draw=True)
                     xp_awarded[pname] = draw_xp
         else:
             # Team modes: find winning team
@@ -4888,7 +4888,7 @@ def judge_battle(room_code):
                     _award_battle_xp(pid, win_xp, won=True)
                     xp_awarded[pname] = win_xp
                 elif winning_team is None:
-                    _award_battle_xp(pid, draw_xp, won=False)
+                    _award_battle_xp(pid, draw_xp, won=False, draw=True)
                     xp_awarded[pname] = draw_xp
                 else:
                     _award_battle_xp(pid, 0, won=False)
@@ -4908,7 +4908,7 @@ def judge_battle(room_code):
         socketio.emit('battle_error', {'message': "AI Referee failed to judge. It's a draw!"}, room=room_code)
 
 
-def _award_battle_xp(user_id, amount, won: bool):
+def _award_battle_xp(user_id, amount, won: bool, draw: bool = False):
     """Award battle-specific XP and update win/loss counters."""
     with app.app_context():
         user = User.query.get(user_id)
@@ -4920,7 +4920,8 @@ def _award_battle_xp(user_id, amount, won: bool):
             GamificationService.add_xp(user_id, 'battle_win' if won else 'battle_draw', amount)
         if won:
             user.battle_wins = (user.battle_wins or 0) + 1
-        else:
+        elif not draw:
+            # Only count as a loss if not a draw
             user.battle_losses = (user.battle_losses or 0) + 1
         db.session.commit()
 
@@ -4980,6 +4981,8 @@ def on_battle_rematch_vote(data):
             'message': "🔁 All agreed! Rematch starting in 3 seconds…",
             'type': 'system'
         }, room=room_code)
+        # Notify clients to reset UI
+        socketio.emit('battle_restart', {}, room=room_code)
         # Auto-start the rematch
         socketio.start_background_task(start_battle_task, room_code)
 
