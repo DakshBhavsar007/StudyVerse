@@ -128,11 +128,11 @@ load_dotenv()
 # Allow OAuth over HTTP for local testing (commented out for production security)
 # os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
 
-# Check for required API Key - Google Gemini API for AI features
-if not os.getenv("AI_API_KEY"):
-    pass  # Application will work without AI features if key is missing
+# Check for required API Keys
+if not os.getenv("GROQ_API_KEY") and not os.getenv("AI_API_KEY"):
+    pass  # Application will work without AI features if keys are missing
 
-# Try to import Google Generative AI library for quiz generation and chat
+# Try to import Google Generative AI library (only needed for PDF/image multimodal)
 try:
     import google.generativeai as genai
     GEMINI_AVAILABLE = True
@@ -266,11 +266,16 @@ socketio = SocketIO(
 # AI API CONFIGURATION (Google Gemini)
 # ============================================================================
 
-# Load AI API credentials from environment
-AI_API_KEY = os.getenv("AI_API_KEY", "")
-AI_API_TYPE = os.getenv("AI_API_TYPE", "google")  # Currently only Google Gemini supported
+# ── Groq (primary - free 14,400 requests/day for all text tasks) ─────────────
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL   = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")  # Best free Groq model
+GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions"
 
-# Configure Gemini API if available
+# ── Gemini (fallback - kept ONLY for PDF extraction & photo solver multimodal) ─
+AI_API_KEY = os.getenv("AI_API_KEY", "")  # Gemini key - only needed for PDF/image features
+AI_API_TYPE = os.getenv("AI_API_TYPE", "google")
+
+# Configure Gemini API if available (only used for multimodal features)
 if GEMINI_AVAILABLE and AI_API_KEY:
     try:
         genai.configure(api_key=AI_API_KEY)
@@ -311,8 +316,8 @@ def to_ist_time(utc_datetime):
 # DATABASE AND SERVICE INITIALIZATION
 # ============================================================================
 
-# AI Model selection (Gemini 2.5 Flash for fast responses)
-AI_MODEL = os.getenv("AI_MODEL", "models/gemini-2.5-flash")
+# AI Model - Groq is primary for text, Gemini kept for multimodal only
+AI_MODEL = os.getenv("AI_MODEL", "models/gemini-2.5-flash")  # Gemini model (PDF/image only)
 
 # Initialize SQLAlchemy for database operations
 db = SQLAlchemy(app)
@@ -1469,69 +1474,69 @@ class SyllabusService:
 # ------------------------------
 def call_ai_api(messages):
     """
-    Call Google Gemini API (or other configured AI).
+    Call Groq API (primary - 14,400 free requests/day) for all text tasks.
+    Falls back to Gemini if Groq key is not set.
     messages: list of dicts [{'role': 'user', 'content': '...'}]
     Returns: str (response content)
     """
-    if not AI_API_KEY:
-         raise ValueError("AI_API_KEY not configured. Please set it in .env")
 
-    # Extract the last user prompt (Gemini is often stateless/one-shot via this simple helper, 
-    # or we can build the history string if using the chat model properly).
-    # For simplicity/robustness here:
-    
+    # ── PRIMARY: Groq (free, fast, 14,400 req/day) ───────────────────────────
+    if GROQ_API_KEY:
+        try:
+            # Groq uses OpenAI-compatible format - supports full message history
+            payload = {
+                "model": GROQ_MODEL,
+                "messages": messages,
+                "max_tokens": 2048,
+                "temperature": 0.7,
+            }
+            headers = {
+                "Authorization": f"Bearer {GROQ_API_KEY}",
+                "Content-Type": "application/json"
+            }
+            r = requests.post(GROQ_API_URL, json=payload, headers=headers, timeout=30)
+            if r.status_code == 200:
+                data = r.json()
+                return data['choices'][0]['message']['content']
+            else:
+                print(f"Groq API error {r.status_code}: {r.text}")
+                # Fall through to Gemini fallback
+        except Exception as e:
+            print(f"Groq API call failed: {e}")
+            # Fall through to Gemini fallback
+
+    # ── FALLBACK: Gemini (only if Groq key missing or failed) ────────────────
+    if not AI_API_KEY:
+        raise ValueError("No AI API key configured. Please set GROQ_API_KEY in .env")
+
+    # Build conversation string for Gemini (stateless)
     conversation_history = ""
     for m in messages:
         role = "User" if m['role'] == 'user' else "Model"
         conversation_history += f"{role}: {m['content']}\n"
-    
-    # We'll just use the last prompt if we want simple stateless, but history is good.
-    # Actually, let's just send the last 2000 chars of history to avoid context limits if using free tier.
-    final_prompt = conversation_history[-3000:] 
+    final_prompt = conversation_history[-3000:]
 
     try:
         model_id = os.environ.get("GEMINI_MODEL", "models/gemini-2.5-flash")
-        
-        # Use simple requests if genai lib issues, or if preferred.
-        # But allow genai lib if available.
         if GEMINI_AVAILABLE:
             model = genai.GenerativeModel(model_id)
-            # Create a chat session or just generate content
-            # Mapping roles for Gemini (user/model)
-            gemini_hist = []
-            # We need to format specific for Gemini history if we use start_chat.
-            # But generate_content is easier for one-off.
-            
             response = model.generate_content(final_prompt)
             return response.text
-            
         else:
-            # Fallback to requests REST API
             if "/" in model_id:
                 endpoint = f"https://generativelanguage.googleapis.com/v1beta/{model_id}:generateContent?key={AI_API_KEY}"
             else:
                 endpoint = f"https://generativelanguage.googleapis.com/v1beta/models/{model_id}:generateContent?key={AI_API_KEY}"
-
-            payload = {
-                "contents": [{
-                    "parts": [{"text": final_prompt}]
-                }]
-            }
-            
+            payload = {"contents": [{"parts": [{"text": final_prompt}]}]}
             r = requests.post(endpoint, json=payload, headers={'Content-Type': 'application/json'}, timeout=30)
             if r.status_code != 200:
                 raise ValueError(f"API Error {r.status_code}: {r.text}")
-                
             data = r.json()
             if 'candidates' in data and data['candidates']:
                 return data['candidates'][0]['content']['parts'][0]['text']
-            
             return "Error: No content returned."
-
     except Exception as e:
-        print(f"AI API Call Failed: {e}")
-        # Return a friendly error or re-raise
-        # Re-raising allows the caller (ChatService) to catch and format nicely
+        print(f"Gemini fallback failed: {e}")
         raise e
 
 
@@ -4664,6 +4669,9 @@ def start_battle_task(room_code):
     room = battles.get(room_code)
     if not room:
         return
+    # Guard: prevent double-start (e.g. auto-start + manual /start both firing)
+    if room['state'] == 'battle':
+        return
     config = room['config']
     if not config['difficulty']:
         config['difficulty'] = 'Easy'
@@ -6517,7 +6525,7 @@ def topic_resolver_explain():
     if not topic:
         return jsonify({'error': 'Topic is required'}), 400
 
-    if not GEMINI_AVAILABLE or not AI_API_KEY:
+    if not GROQ_API_KEY and not AI_API_KEY:
         return jsonify({'error': 'AI service not configured'}), 503
 
     try:
@@ -6537,9 +6545,8 @@ Generate a structured learning breakdown in JSON format:
 
 Return ONLY valid JSON. No markdown, no extra text."""
 
-        model = genai.GenerativeModel(AI_MODEL)
-        resp = model.generate_content(prompt)
-        raw = resp.text.strip()
+        raw = call_ai_api([{'role': 'user', 'content': prompt}])
+        raw = raw.strip()
         # Strip markdown code fences if present
         if raw.startswith('```'):
             raw = raw.split('```')[1]
@@ -6720,14 +6727,13 @@ def topic_resolver_diagram():
     except Exception as img_err:
         print(f"Image generation failed: {img_err}")
 
-    # Fallback: use Gemini to generate a text-based ASCII/structured diagram description
+    # Fallback: use Groq/AI to generate a text-based ASCII/structured diagram description
     try:
         fallback_prompt = f"""Create a clear, structured text diagram or concept map for: "{topic}"
 Use ASCII art, arrows (→, ↓, ←, ↑), boxes (┌─┐ │ └─┘), and indentation to show relationships.
 Make it educational, concise, and visually clear. Max 30 lines."""
-        model = genai.GenerativeModel(AI_MODEL)
-        fb_resp = model.generate_content(fallback_prompt)
-        return jsonify({'description': fb_resp.text.strip()})
+        fb_text = call_ai_api([{'role': 'user', 'content': fallback_prompt}])
+        return jsonify({'description': fb_text.strip()})
     except Exception as fb_err:
         return jsonify({'description': f'Diagram generation unavailable for: {topic}'}), 200
 
