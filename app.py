@@ -6405,7 +6405,7 @@ def setup_admin_panel_once():
     """
     try:
         # Check if admin already exists
-        existing_admin = User.query.filter_by(email='admin@studyversefinal.com').first()
+        existing_admin = User.query.filter_by(email='admin@studyverse.com').first()
         
         if existing_admin and existing_admin.is_admin:
             return """
@@ -6426,7 +6426,7 @@ def setup_admin_panel_once():
                     <h1>✅ Admin Panel Already Setup!</h1>
                     <div class="info">
                         <p><strong>Admin account already exists and is ready to use.</strong></p>
-                        <p>Email: <code>admin@studyversefinal.com</code></p>
+                        <p>Email: <code>admin@studyverse.com</code></p>
                     </div>
                     <p>You can now:</p>
                     <ol>
@@ -6518,8 +6518,8 @@ def setup_admin_panel_once():
         from werkzeug.security import generate_password_hash
         
         admin_user = User(
-            email='admin@studyversefinal.com',
-            password_hash=generate_password_hash('adminfinal@12345'),
+            email='admin@studyverse.com',
+            password_hash=generate_password_hash('StudyVerse@007'),
             first_name='Admin',
             last_name='User',
             is_admin=True,
@@ -6560,8 +6560,8 @@ def setup_admin_panel_once():
                 
                 <div class="credentials">
                     <h3 style="margin-top: 0; color: #e2e8f0;">Admin Credentials:</h3>
-                    <p><strong>Email:</strong> <code>admin@studyversefinal.com</code></p>
-                    <p><strong>Password:</strong> <code>adminfinal@12345</code></p>
+                    <p><strong>Email:</strong> <code>admin@studyverse.com</code></p>
+                    <p><strong>Password:</strong> <code>StudyVerse@007</code></p>
                 </div>
                 
                 <div class="warning">
