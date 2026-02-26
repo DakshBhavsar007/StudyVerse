@@ -2630,7 +2630,173 @@ class ActivePowerUp(db.Model):
 class ShopService:
     # Hardcoded catalog for now
     ITEMS = {
+        # === CONSUMABLES / POWER-UPS ===
+        'xp_boost': {
+            'id': 'xp_boost',
+            'name': 'XP Boost 🚀',
+            'description': '2x XP for the next 24 hours!',
+            'price': 750,
+            'icon': 'fa-rocket',
+            'type': 'consumable',
+            'color': '#10b981',
+            'effect': 'xp_multiplier',
+            'duration': 86400  # 24 hours in seconds
+        },
+        'double_time': {
+            'id': 'double_time',
+            'name': 'Double Time ⏰',
+            'description': 'Pomodoro sessions count as 2x duration.',
+            'price': 1000,
+            'icon': 'fa-clock',
+            'type': 'consumable',
+            'color': '#f59e0b',
+            'effect': 'time_multiplier',
+            'duration': 86400
+        },
+        'mega_xp_boost': {
+            'id': 'mega_xp_boost',
+            'name': 'Mega XP Boost 💥',
+            'description': '5x XP for 12 hours! Ultimate grind.',
+            'price': 2000,
+            'icon': 'fa-burst',
+            'type': 'consumable',
+            'color': '#fbbf24',
+            'effect': 'mega_xp_multiplier',
+            'duration': 43200  # 12 hours
+        },
+        'invincibility': {
+            'id': 'invincibility',
+            'name': 'Invincibility 🛡️',
+            'description': 'No XP loss for 48 hours.',
+            'price': 1800,
+            'icon': 'fa-shield',
+            'type': 'consumable',
+            'color': '#3b82f6',
+            'effect': 'xp_protection',
+            'duration': 172800  # 48 hours
+        },
+        'instant_level': {
+            'id': 'instant_level',
+            'name': 'Instant Level Up ⚡',
+            'description': 'Instantly gain 1 level!',
+            'price': 3000,
+            'icon': 'fa-bolt-lightning',
+            'type': 'consumable',
+            'color': '#eab308',
+            'effect': 'instant_level'
+        },
+        
         # === THEMES ===
+        'theme_cyberpunk': {
+            'id': 'theme_cyberpunk',
+            'name': 'Cyberpunk Theme 🤖',
+            'description': 'Neon purple visuals and glitch effects.',
+            'price': 10,
+            'icon': 'fa-vr-cardboard',
+            'type': 'theme',
+            'color': '#d946ef'
+        },
+        'theme_matrix': {
+            'id': 'theme_matrix',
+            'name': 'Matrix Theme 💚',
+            'description': 'Enter the Matrix with green code rain.',
+            'price': 10,
+            'icon': 'fa-code',
+            'type': 'theme',
+            'color': '#22c55e'
+        },
+        'theme_sunset': {
+            'id': 'theme_sunset',
+            'name': 'Sunset Theme 🌅',
+            'description': 'Warm orange and pink gradient vibes.',
+            'price': 10,
+            'icon': 'fa-sun',
+            'type': 'theme',
+            'color': '#fb923c'
+        },
+        'theme_ocean': {
+            'id': 'theme_ocean',
+            'name': 'Ocean Theme 🌊',
+            'description': 'Deep blue calming ocean aesthetics.',
+            'price': 10,
+            'icon': 'fa-water',
+            'type': 'theme',
+            'color': '#06b6d4'
+        },
+        'theme_midnight': {
+            'id': 'theme_midnight',
+            'name': 'Midnight Theme 🌙',
+            'description': 'Pure black with silver accents.',
+            'price': 10,
+            'icon': 'fa-moon',
+            'type': 'theme',
+            'color': '#94a3b8'
+        },
+        'theme_forest': {
+            'id': 'theme_forest',
+            'name': 'Forest Theme 🌲',
+            'description': 'Natural green forest atmosphere.',
+            'price': 10,
+            'icon': 'fa-tree',
+            'type': 'theme',
+            'color': '#16a34a'
+        },
+        'theme_aurora': {
+            'id': 'theme_aurora',
+            'name': 'Aurora Theme 🌌',
+            'description': 'Northern lights with flowing colors.',
+            'price': 10,
+            'icon': 'fa-wand-magic-sparkles',
+            'type': 'theme',
+            'color': '#a78bfa'
+        },
+        'theme_lava': {
+            'id': 'theme_lava',
+            'name': 'Lava Theme 🌋',
+            'description': 'Molten lava with fiery animations.',
+            'price': 10,
+            'icon': 'fa-fire-flame-curved',
+            'type': 'theme',
+            'color': '#dc2626'
+        },
+        'theme_synthwave': {
+            'id': 'theme_synthwave',
+            'name': 'Synthwave Theme 🎵',
+            'description': '80s retro neon grid aesthetic.',
+            'price': 10,
+            'icon': 'fa-compact-disc',
+            'type': 'theme',
+            'color': '#f472b6'
+        },
+        'theme_retro': {
+            'id': 'theme_retro',
+            'name': 'Retro Terminal 💻',
+            'description': 'Classic green terminal vibes.',
+            'price': 10,
+            'icon': 'fa-terminal',
+            'type': 'theme',
+            'color': '#84cc16'
+        },
+        
+        # === NEW PREMIUM THEMES ===
+        'theme_blood_moon': {
+            'id': 'theme_blood_moon',
+            'name': 'Blood Moon Theme 🩸',
+            'description': 'Crimson red with dark shadows.',
+            'price': 4000,
+            'icon': 'fa-moon',
+            'type': 'theme',
+            'color': '#991b1b'
+        },
+        'theme_toxic': {
+            'id': 'theme_toxic',
+            'name': 'Toxic Theme ☢️',
+            'description': 'Radioactive green with hazard vibes.',
+            'price': 3200,
+            'icon': 'fa-radiation',
+            'type': 'theme',
+            'color': '#84cc16'
+        },
         'theme_neon_city': {
             'id': 'theme_neon_city',
             'name': 'Neon City Theme 🌃',
@@ -2649,33 +2815,6 @@ class ShopService:
             'type': 'theme',
             'color': '#f9a8d4'
         },
-        'theme_cyberpunk': {
-            'id': 'theme_cyberpunk',
-            'name': 'Cyberpunk Theme 🤖',
-            'description': 'Neon purple visuals and glitch effects.',
-            'price': 4000,
-            'icon': 'fa-vr-cardboard',
-            'type': 'theme',
-            'color': '#d946ef'
-        },
-        'theme_synthwave': {
-            'id': 'theme_synthwave',
-            'name': 'Synthwave Theme 🎵',
-            'description': '80s retro neon grid aesthetic.',
-            'price': 3500,
-            'icon': 'fa-compact-disc',
-            'type': 'theme',
-            'color': '#f472b6'
-        },
-         'theme_aurora': {
-            'id': 'theme_aurora',
-            'name': 'Aurora Theme 🌌',
-            'description': 'Northern lights with flowing colors.',
-            'price': 3000,
-            'icon': 'fa-wand-magic-sparkles',
-            'type': 'theme',
-            'color': '#a78bfa'
-        },
         
         # === FRAMES ===
         'frame_gold': {
@@ -2686,6 +2825,15 @@ class ShopService:
             'icon': 'fa-crown',
             'type': 'frame',
             'color': '#eab308'
+        },
+        'frame_glitch': {
+            'id': 'frame_glitch',
+            'name': 'Glitched Frame 👾',
+            'description': 'Animated glitch effect with RGB split.',
+            'price': 5000,
+            'icon': 'fa-bug',
+            'type': 'frame',
+            'color': '#ef4444'
         },
         'frame_diamond': {
             'id': 'frame_diamond',
@@ -2714,14 +2862,115 @@ class ShopService:
             'type': 'frame',
             'color': '#38bdf8'
         },
-        'frame_glitch': {
-            'id': 'frame_glitch',
-            'name': 'Glitched Frame 👾',
-            'description': 'Animated glitch effect with RGB split.',
-            'price': 5000,
-            'icon': 'fa-bug',
+        'frame_rainbow': {
+            'id': 'frame_rainbow',
+            'name': 'Rainbow Frame 🌈',
+            'description': 'Animated rainbow color-shifting border.',
+            'price': 6000,
+            'icon': 'fa-rainbow',
             'type': 'frame',
-            'color': '#ef4444'
+            'color': '#ec4899'
+        },
+        'frame_neon': {
+            'id': 'frame_neon',
+            'name': 'Neon Frame ⚡',
+            'description': 'Electric neon glow with lightning.',
+            'price': 4500,
+            'icon': 'fa-bolt',
+            'type': 'frame',
+            'color': '#facc15'
+        },
+        'frame_cosmic': {
+            'id': 'frame_cosmic',
+            'name': 'Cosmic Frame 🌌',
+            'description': 'Galaxy stars and nebula swirls.',
+            'price': 8000,
+            'icon': 'fa-star',
+            'type': 'frame',
+            'color': '#6366f1'
+        },
+        'frame_plasma': {
+            'id': 'frame_plasma',
+            'name': 'Plasma Frame ⚡',
+            'description': 'Electric plasma energy swirls.',
+            'price': 9000,
+            'icon': 'fa-atom',
+            'type': 'frame',
+            'color': '#06b6d4'
+        },
+        'frame_shadow': {
+            'id': 'frame_shadow',
+            'name': 'Shadow Frame 👤',
+            'description': 'Dark shadow aura with smoke.',
+            'price': 6500,
+            'icon': 'fa-ghost',
+            'type': 'frame',
+            'color': '#71717a'
+        },
+        'frame_crystal': {
+            'id': 'frame_crystal',
+            'name': 'Crystal Frame 💠',
+            'description': 'Prismatic crystal refraction.',
+            'price': 10000,
+            'icon': 'fa-gem',
+            'type': 'frame',
+            'color': '#c084fc'
+        },
+        'frame_dragon': {
+            'id': 'frame_dragon',
+            'name': 'Dragon Frame 🐉',
+            'description': 'Legendary dragon scales.',
+            'price': 15000,
+            'icon': 'fa-dragon',
+            'type': 'frame',
+            'color': '#b91c1c'
+        },
+        'frame_holographic': {
+            'id': 'frame_holographic',
+            'name': 'Holographic Frame ✨',
+            'description': 'Futuristic hologram projection.',
+            'price': 12000,
+            'icon': 'fa-sparkles',
+            'type': 'frame',
+            'color': '#22d3ee'
+        },
+        
+        # === NEW EXCLUSIVE FRAMES ===
+        'frame_void': {
+            'id': 'frame_void',
+            'name': 'Void Frame 🕳️',
+            'description': 'Dark void consuming reality.',
+            'price': 18000,
+            'icon': 'fa-circle',
+            'type': 'frame',
+            'color': '#18181b'
+        },
+        'frame_lightning': {
+            'id': 'frame_lightning',
+            'name': 'Lightning Frame ⚡',
+            'description': 'Crackling electric bolts.',
+            'price': 11000,
+            'icon': 'fa-bolt-lightning',
+            'type': 'frame',
+            'color': '#fbbf24'
+        },
+        'frame_phoenix': {
+            'id': 'frame_phoenix',
+            'name': 'Phoenix Frame 🔥',
+            'description': 'Rebirth flames of the phoenix.',
+            'price': 20000,
+            'icon': 'fa-fire-flame-curved',
+            'type': 'frame',
+            'color': '#f97316'
+        },
+        'frame_galaxy': {
+            'id': 'frame_galaxy',
+            'name': 'Galaxy Frame 🌠',
+            'description': 'Swirling galaxy with stars.',
+            'price': 16000,
+            'icon': 'fa-star',
+            'type': 'frame',
+            'color': '#8b5cf6'
         }
     }
 
