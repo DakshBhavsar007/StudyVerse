@@ -4528,20 +4528,25 @@ def _add_player_to_room(room_code, user_id, name, sid):
 
     # Auto-start battle when all slots are filled
     if len(room['players']) >= total_slots:
+        import random
+        # Set default config if host hasn't configured yet
+        if not room['config']['difficulty']:
+            room['config']['difficulty'] = random.choice(['Easy', 'Medium', 'Hard'])
+        if not room['config']['language']:
+            room['config']['language'] = random.choice(['Python', 'JavaScript', 'Java', 'C++'])
+
         socketio.emit('battle_chat_message', {
             'sender': 'ByteBot',
-            'message': f"🎮 All {total_slots} players have joined! Room is full. Starting battle in 3 seconds...",
+            'message': f"🎮 All {total_slots} players have joined! Room is full. Auto-selected: {room['config']['difficulty']} {room['config']['language']}. Starting in 3 seconds...",
             'type': 'system'
         }, room=room_code)
 
-        # Set default config if host hasn't configured yet
-        if not room['config']['difficulty']:
-            room['config']['difficulty'] = 'Medium'
-        if not room['config']['language']:
-            room['config']['language'] = 'Python'
-
         # Auto-trigger battle start in background
-        socketio.start_background_task(start_battle_task, room_code)
+        def delayed_start():
+            import eventlet
+            eventlet.sleep(3)
+            start_battle_task(room_code)
+        socketio.start_background_task(delayed_start)
 
 
 @socketio.on('battle_join_response')
@@ -4673,10 +4678,11 @@ def start_battle_task(room_code):
     if room['state'] == 'battle':
         return
     config = room['config']
+    import random
     if not config['difficulty']:
-        config['difficulty'] = 'Easy'
+        config['difficulty'] = random.choice(['Easy', 'Medium', 'Hard'])
     if not config['language']:
-        config['language'] = 'Python'
+        config['language'] = random.choice(['Python', 'JavaScript', 'Java', 'C++'])
 
     problem = generate_battle_problem(config['difficulty'], config['language'])
     room['state']   = 'battle'
