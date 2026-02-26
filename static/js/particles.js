@@ -174,17 +174,15 @@ class ParticleSystem {
             p.speed = 1 + Math.random(); // Floating
         }
 
-        // ... (Keep existing logic for others or default) ...
-        // Re-adding default fallback for others to ensure specific overrides work
+        // Fallback for themes that don't set p.color above
         if (!p.color) {
-            // Fallbacks for other themes
             if (this.activeTheme === 'cyberpunk') {
                 p.color = Math.random() > 0.5 ? '#d946ef' : '#06b6d4';
                 p.speed = 3 + Math.random() * 4;
                 p.w = Math.random() * 20 + 5;
                 p.h = Math.random() * 2 + 1;
             } else if (this.activeTheme === 'neon_city') {
-                p.color = ['#06b6d4', '#f0abfc', '#fbbf24', '#34d399'][Math.floor(Math.random()*4)];
+                p.color = ['#06b6d4', '#f0abfc', '#fbbf24', '#34d399'][Math.floor(Math.random() * 4)];
                 p.speed = 15 + Math.random() * 10;
                 p.w = 1;
                 p.h = 20 + Math.random() * 20;
@@ -195,11 +193,10 @@ class ParticleSystem {
                 p.color = Math.random() > 0.5 ? '#38bdf8' : '#7dd3fc';
                 p.size = 2 + Math.random() * 3;
             } else if (this.activeTheme === 'forest') {
-                p.color = '#4ade80';
+                p.color = Math.random() > 0.5 ? '#4ade80' : '#86efac';
                 p.size = 4 + Math.random() * 4;
             } else {
                 p.color = '#ffffff';
-                p.size = p.size || (2 + Math.random() * 2);
             }
         }
 
@@ -355,18 +352,37 @@ class ParticleSystem {
     }
 }
 
-// Initialize on load
-document.addEventListener('DOMContentLoaded', () => {
-    // Apply the active theme class from server-side template variable.
-    // layout.html should pass `active_theme` via a global JS variable like:
-    //   <script>window.ACTIVE_THEME = "{{ active_theme }}";</script>
-    // If that variable exists and is set, apply the class to body now.
-    if (window.ACTIVE_THEME && window.ACTIVE_THEME !== 'None' && window.ACTIVE_THEME !== '') {
-        // Remove any existing theme_ classes first
-        const existingTheme = [...document.body.classList].find(c => c.startsWith('theme_'));
-        if (existingTheme) document.body.classList.remove(existingTheme);
-        // Add the active theme class
-        document.body.classList.add(window.ACTIVE_THEME);
-    }
+// Initialize on load — fetch active theme from server so we never
+// depend on layout.html passing window.ACTIVE_THEME or a body class.
+document.addEventListener('DOMContentLoaded', async () => {
+    // Create the particle system first so the MutationObserver is set up.
+    // Then apply the theme class — the observer will fire and trigger particles.
     window.particleSystem = new ParticleSystem();
+
+    // Helper to safely apply a theme class and trigger the observer
+    function applyThemeClass(themeId) {
+        if (!themeId || themeId === 'None') return;
+        // Remove any stale theme classes
+        const stale = [...document.body.classList].filter(c => c.startsWith('theme_'));
+        stale.forEach(c => document.body.classList.remove(c));
+        // Add new class — MutationObserver fires → updateTheme() → resetParticles()
+        document.body.classList.add(themeId);
+    }
+
+    // Option 1: layout.html set window.ACTIVE_THEME (optional but instant)
+    if (window.ACTIVE_THEME && window.ACTIVE_THEME !== 'None' && window.ACTIVE_THEME !== '') {
+        applyThemeClass(window.ACTIVE_THEME);
+        return;
+    }
+
+    // Option 2: fetch from API (works on every page, zero layout.html changes needed)
+    try {
+        const res  = await fetch('/api/user/theme');
+        const data = await res.json();
+        if (data.status === 'success' && data.active_theme) {
+            applyThemeClass(data.active_theme);
+        }
+    } catch(e) {
+        // Silently fail — no theme means no particles (dark mode default), that's correct
+    }
 });

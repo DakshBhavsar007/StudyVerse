@@ -365,8 +365,13 @@
 
 <!-- Profile Hero with Video Background -->
 <div class="profile-hero-main">
-    <!-- Background Video -->
-    <video autoplay loop muted playsinline class="hero-bg-video">
+    <!-- Background Video - uses user custom video if dashboard_video_upload owned -->
+    <video id="profile-bg-video" autoplay loop muted playsinline class="hero-bg-video">
+        {% if user.id == current_user.id and current_user.dashboard_video %}
+        <source src="{{ url_for('static', filename=current_user.dashboard_video) }}" type="video/mp4">
+        {% elif user.dashboard_video and user.is_public_profile %}
+        <source src="{{ url_for('static', filename=user.dashboard_video) }}" type="video/mp4">
+        {% endif %}
         <source src="/static/img/bg3.mp4" type="video/mp4">
     </video>
 
@@ -380,6 +385,24 @@
             <div class="hero-avatar-wrapper">
                 <img id="profile-avatar" src="{{ user.get_avatar(200) }}" class="hero-avatar"
                     style="border: 4px solid {{ active_frame.color if active_frame else 'rgba(255,255,255,0.2)' }}; {{ 'box-shadow: 0 0 20px ' + active_frame.color if active_frame else '' }}">
+
+                {# Photo upload overlay — only if viewing own profile AND owns the unlock #}
+                {% if user.id == current_user.id and has_profile_photo_unlock %}
+                <label for="avatar-upload-input"
+                    style="position:absolute; inset:0; border-radius:50%;
+                           background: rgba(0,0,0,0); display:flex; align-items:center; justify-content:center;
+                           cursor:pointer; transition: background 0.2s; z-index:10;"
+                    onmouseover="this.style.background='rgba(0,0,0,0.55)'; this.querySelector('span').style.opacity='1'"
+                    onmouseout="this.style.background='rgba(0,0,0,0)'; this.querySelector('span').style.opacity='0'"
+                    title="Upload profile photo">
+                    <span style="opacity:0; transition: opacity 0.2s; color:#fff; font-size:0.75rem; font-weight:700; text-align:center; pointer-events:none;">
+                        <i class="fa-solid fa-camera" style="display:block; font-size:1.5rem; margin-bottom:4px;"></i>
+                        Change Photo
+                    </span>
+                </label>
+                <input type="file" id="avatar-upload-input" accept="image/jpeg,image/png,image/webp,image/gif"
+                    style="display:none;" onchange="uploadProfilePhoto(this)">
+                {% endif %}
 
                 {% if active_frame and active_frame.id == 'frame_glitch' %}
                 <div class="glitch-frame-inner"></div>
@@ -858,5 +881,44 @@
                 btn.disabled = false;
             });
     });
+
+    // ═══════════════════════════════════════════════════════════
+    // PROFILE PHOTO UPLOAD (requires profile_photo_upload unlock)
+    // ═══════════════════════════════════════════════════════════
+    async function uploadProfilePhoto(input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image must be under 5MB.');
+            return;
+        }
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res  = await fetch('/profile/upload_photo', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.status === 'success') {
+                // Hot-swap avatar without reload
+                document.getElementById('profile-avatar').src = data.url + '?t=' + Date.now();
+                // Small toast
+                showToast('Profile photo updated! ✓', '#4ade80');
+            } else {
+                alert('Upload failed: ' + (data.error || 'Unknown'));
+            }
+        } catch(e) {
+            alert('Upload error: ' + e.message);
+        }
+    }
+
+    function showToast(msg, color) {
+        const t = document.createElement('div');
+        t.textContent = msg;
+        t.style.cssText = `position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
+            background:${color};color:#000;padding:10px 22px;border-radius:30px;
+            font-weight:700;font-size:0.9rem;z-index:9999;
+            animation:fadeIn 0.3s ease;pointer-events:none;`;
+        document.body.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
 </script>
 {% endblock %}

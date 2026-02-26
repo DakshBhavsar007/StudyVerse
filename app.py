@@ -409,6 +409,7 @@ class User(UserMixin, db.Model):
     last_name = db.Column(db.String(50))
     profile_image = db.Column(db.String(255), nullable=True)
     cover_image = db.Column(db.String(255), nullable=True)
+    dashboard_video = db.Column(db.String(255), nullable=True)
     about_me = db.Column(db.Text, nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
@@ -2438,7 +2439,10 @@ def dashboard():
         
         if important_todo:
             important_todo_label = "Upcoming Task"
-             
+
+    has_dashboard_video_unlock = db.session.query(UserItem).filter_by(
+        user_id=current_user.id, item_id='dashboard_video_upload'
+    ).first() is not None
 
     return render_template(
         'dashboard.html',
@@ -2463,7 +2467,8 @@ def dashboard():
         completed_events_week=completed_events_week,
         important_event=important_event,
         important_todo=important_todo,
-        important_todo_label=important_todo_label
+        important_todo_label=important_todo_label,
+        has_dashboard_video_unlock=has_dashboard_video_unlock
     )
 
 @app.route('/chat')
@@ -2685,7 +2690,27 @@ class ShopService:
             'color': '#eab308',
             'effect': 'instant_level'
         },
-        
+        'profile_photo_upload': {
+            'id': 'profile_photo_upload',
+            'name': 'Custom Profile Photo 📸',
+            'description': 'Upload your own profile photo. One-time unlock — yours forever!',
+            'price': 10000,
+            'icon': 'fa-camera',
+            'type': 'unlock',
+            'color': '#f472b6',
+            'effect': 'profile_photo'
+        },
+        'dashboard_video_upload': {
+            'id': 'dashboard_video_upload',
+            'name': 'Custom Banner Video 🎬',
+            'description': 'Upload a personal video to your dashboard & profile banner. Max 50MB MP4/WebM.',
+            'price': 20000,
+            'icon': 'fa-film',
+            'type': 'unlock',
+            'color': '#818cf8',
+            'effect': 'dashboard_video'
+        },
+
         # === THEMES ===
         'theme_cyberpunk': {
             'id': 'theme_cyberpunk',
@@ -2980,8 +3005,8 @@ class ShopService:
         if not item:
             return {'status': 'error', 'message': 'Item not found.'}
         
-        # Check ownership (unless consumable)
-        if item['type'] != 'consumable':
+        # Check ownership (unless consumable or unlock — unlocks can be re-purchased to re-use the feature)
+        if item['type'] not in ('consumable', 'unlock'):
             owned = UserItem.query.filter_by(user_id=user.id, item_id=item_id).first()
             if owned:
                 return {'status': 'error', 'message': 'You already own this item!'}
@@ -2993,7 +3018,16 @@ class ShopService:
 
         # Deduct XP
         user.total_xp -= item['price']
-        
+
+        # Handle Unlock items (profile photo / dashboard video) — repeatable with XP
+        if item['type'] == 'unlock':
+            existing = UserItem.query.filter_by(user_id=user.id, item_id=item_id).first()
+            if not existing:
+                new_item = UserItem(user_id=user.id, item_id=item_id)
+                db.session.add(new_item)
+            db.session.commit()
+            return {'status': 'success', 'message': f"{item['name']} activated! You can now upload your file. 🎉", 'new_xp': user.total_xp}
+
         # Handle Consumables (Power-Ups)
         if item['type'] == 'consumable':
             effect = item.get('effect')
@@ -3149,6 +3183,60 @@ def shop_unequip(item_id):
     else:
         flash('Item not found.', 'error')
     return redirect(url_for('shop'))
+
+@app.route('/api/user/theme')
+@login_required
+def api_user_theme():
+    """
+    Returns the user's currently active theme and frame.
+    Called by particles.js on every page load — no layout.html changes needed.
+    """
+    inventory = UserItem.query.filter_by(user_id=current_user.id, is_active=True).all()
+    active_theme = None
+    active_frame = None
+    for u_item in inventory:
+        cat_item = ShopService.ITEMS.get(u_item.item_id)
+        if cat_item and cat_item['type'] == 'theme':
+            active_theme = u_item.item_id
+        elif cat_item and cat_item['type'] == 'frame':
+            active_frame = u_item.item_id
+    return jsonify({'status': 'success', 'active_theme': active_theme, 'active_frame': active_frame})
+
+
+@app.route('/api/shop/active-powerups')
+@login_required
+def api_active_powerups():
+    """
+    Returns all currently-active consumable power-ups for the logged-in user.
+    Also cleans up any expired records.
+    """
+    now = datetime.utcnow()
+    expired = ActivePowerUp.query.filter_by(
+        user_id=current_user.id, is_active=True
+    ).filter(
+        ActivePowerUp.expires_at != None,
+        ActivePowerUp.expires_at <= now
+    ).all()
+    for p in expired:
+        p.is_active = False
+    if expired:
+        db.session.commit()
+    active = ActivePowerUp.query.filter_by(user_id=current_user.id, is_active=True).all()
+    result = []
+    for powerup in active:
+        cat_item = ShopService.ITEMS.get(powerup.power_up_id)
+        if not cat_item:
+            continue
+        result.append({
+            'item_id':    powerup.power_up_id,
+            'name':       cat_item['name'],
+            'icon':       cat_item.get('icon', 'fa-bolt'),
+            'color':      cat_item.get('color', '#10b981'),
+            'multiplier': getattr(powerup, 'multiplier', 1),
+            'expires_at': powerup.expires_at.isoformat() + 'Z' if powerup.expires_at else None,
+        })
+    return jsonify({'status': 'success', 'powerups': result})
+
 
 @app.route('/group')
 @login_required
@@ -3525,22 +3613,11 @@ def pomodoro_save_session():
         )
         db.session.add(study_session)
         
-        # Award XP: 1 XP per minute of focus
+        # Award XP: 1 XP per minute of focus.
+        # Always pass the real (physical) duration — add_xp applies
+        # the Double Time time_multiplier internally. Never double here.
         if mode == 'focus':
-            # Check for Double Time power-up to adjust stored duration
-            active_time_boost = ActivePowerUp.query.filter_by(
-                user_id=current_user.id, 
-                power_up_id='double_time',
-                is_active=True
-            ).first()
-            
-            if active_time_boost and not active_time_boost.is_expired():
-                study_session.duration = duration * 2
-                xp_amount = duration # add_xp will handle the multiplier
-            else:
-                xp_amount = duration
-                
-            result = GamificationService.add_xp(current_user.id, 'focus', xp_amount)
+            result = GamificationService.add_xp(current_user.id, 'focus', duration)
         
         db.session.commit()
         return jsonify({'status': 'success', 'message': 'Session saved'})
@@ -4210,7 +4287,20 @@ def profile(user_id):
             active_frame = cat_item
             break
 
-    return render_template('profile.html', user=user, badges=badges, total_focus_hours=total_focus_hours, calendar_events=calendar_events, active_frame=active_frame)
+    has_profile_photo_unlock = False
+    has_dashboard_video_unlock = False
+    if current_user.is_authenticated and user.id == current_user.id:
+        has_profile_photo_unlock = db.session.query(UserItem).filter_by(
+            user_id=current_user.id, item_id='profile_photo_upload'
+        ).first() is not None
+        has_dashboard_video_unlock = db.session.query(UserItem).filter_by(
+            user_id=current_user.id, item_id='dashboard_video_upload'
+        ).first() is not None
+
+    return render_template('profile.html', user=user, badges=badges, total_focus_hours=total_focus_hours,
+                           calendar_events=calendar_events, active_frame=active_frame,
+                           has_profile_photo_unlock=has_profile_photo_unlock,
+                           has_dashboard_video_unlock=has_dashboard_video_unlock)
 
 @app.route('/calendar')
 @login_required
@@ -4402,6 +4492,83 @@ def profile_upload_cover():
         })
     
     return jsonify({'error': 'Upload failed'}), 500
+
+@app.route('/profile/upload_photo', methods=['POST'])
+@login_required
+def profile_upload_photo():
+    # Gate: check ownership
+    ownership = UserItem.query.filter_by(
+        user_id=current_user.id, item_id='profile_photo_upload'
+    ).first()
+    if not ownership:
+        return jsonify({'error': 'You have not unlocked profile photo upload. Purchase it from the shop using XP.'}), 403
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    allowed = {'jpg', 'jpeg', 'png', 'webp', 'gif'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed:
+        return jsonify({'error': 'Only JPG, PNG, WEBP or GIF allowed'}), 400
+
+    filename = secure_filename(file.filename)
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    unique_filename = f"avatar_{current_user.id}_{timestamp}.{ext}"
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+    file.save(save_path)
+
+    current_user.profile_image = url_for('static', filename=f'uploads/{unique_filename}')
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'url': current_user.profile_image
+    })
+
+
+@app.route('/profile/upload_dashboard_video', methods=['POST'])
+@login_required
+def profile_upload_dashboard_video():
+    # Gate: check ownership
+    ownership = UserItem.query.filter_by(
+        user_id=current_user.id, item_id='dashboard_video_upload'
+    ).first()
+    if not ownership:
+        return jsonify({'error': 'You have not unlocked dashboard video upload. Purchase it from the shop using XP.'}), 403
+
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No file selected'}), 400
+
+    allowed = {'mp4', 'webm'}
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in allowed:
+        return jsonify({'error': 'Only MP4 or WebM allowed'}), 400
+
+    # Check file size (50MB limit)
+    file.seek(0, 2)
+    size = file.tell()
+    file.seek(0)
+    if size > 50 * 1024 * 1024:
+        return jsonify({'error': 'File must be under 50MB'}), 400
+
+    timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+    unique_filename = f"dashvid_{current_user.id}_{timestamp}.{ext}"
+    save_path = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+    file.save(save_path)
+
+    current_user.dashboard_video = f"uploads/{unique_filename}"
+    db.session.commit()
+
+    return jsonify({
+        'status': 'success',
+        'url': url_for('static', filename=f'uploads/{unique_filename}')
+    })
 
 # ------------------------------
 # BYTE BATTLE LOGIC (1v1 AI Referee)
@@ -7120,8 +7287,8 @@ Make it educational, concise, and visually clear. Max 30 lines."""
 def topic_resolver_award_xp():
     """Award XP for using the Topic Resolver feature."""
     try:
+        # add_xp already calls update_streak(user) internally — don't call it again
         result = GamificationService.add_xp(current_user.id, 'topic_resolver', 15)
-        GamificationService.update_streak(current_user.id)
         earned = (result or {}).get('earned', 15) if result else 15
         return jsonify({'earned': earned if earned > 0 else 15})
     except Exception:
@@ -7252,8 +7419,8 @@ IMPORTANT:
 def photo_solver_award_xp():
     """Award XP for using the Photo Solver feature."""
     try:
+        # add_xp already calls update_streak(user) internally — don't call it again
         result = GamificationService.add_xp(current_user.id, 'photo_solver', 20)
-        GamificationService.update_streak(current_user.id)
         earned = (result or {}).get('earned', 20) if result else 20
         return jsonify({'earned': earned if earned > 0 else 20})
     except Exception:
@@ -7861,6 +8028,10 @@ def _run_db_init_once():
          'ALTER TABLE "user" ADD COLUMN battle_losses INTEGER DEFAULT 0'),
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_draws INTEGER DEFAULT 0",
          'ALTER TABLE "user" ADD COLUMN battle_draws INTEGER DEFAULT 0'),
+
+        # ── 🎬  Media upload columns ──────────────────────────────────────────
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS dashboard_video VARCHAR(255)",
+         'ALTER TABLE "user" ADD COLUMN dashboard_video VARCHAR(255)'),
     ]
 
     _is_postgres = 'postgresql' in app.config.get('SQLALCHEMY_DATABASE_URI', '')

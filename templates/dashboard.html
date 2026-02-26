@@ -35,18 +35,40 @@ Data Flow:
     <div class="pixel-banner"
         style="overflow: hidden; position: relative; height: 260px; border-radius: 20px; margin-bottom: 24px;">
 
-        {# Background video - Flask url_for() generates correct static file path #}
-        <video autoplay loop muted playsinline
+        {# Background video - uses user custom video if unlocked & uploaded, else default #}
+        <video id="dash-bg-video" autoplay loop muted playsinline
             style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; object-fit: cover; z-index: 0;">
+            {% if current_user.dashboard_video %}
+            <source src="{{ url_for('static', filename=current_user.dashboard_video) }}" type="video/mp4">
+            {% endif %}
             <source src="{{ url_for('static', filename='img/bg3.mp4') }}" type="video/mp4">
         </video>
 
         {# Overlay text on top of video (z-index: 1 to appear above video) #}
-        <div class="banner-overlay" style="z-index: 1;">
-            <h1
-                style="font-size: 2.8rem; font-family: var(--font-heading); color: #fff; margin: 0; text-shadow: 0 4px 15px rgba(0,0,0,0.7);">
+        <div class="banner-overlay" style="z-index: 1; position: relative;">
+            <h1 style="font-size: 2.8rem; font-family: var(--font-heading); color: #fff; margin: 0; text-shadow: 0 4px 15px rgba(0,0,0,0.7);">
                 Ultimate Student Planner
             </h1>
+            {# Upload button — only shown if user owns the dashboard_video_upload unlock #}
+            {% if has_dashboard_video_unlock %}
+            <div style="margin-top: 14px;">
+                <label for="dash-video-input"
+                    style="display:inline-flex; align-items:center; gap:8px;
+                           background: rgba(0,0,0,0.55); border: 1px solid rgba(255,255,255,0.3);
+                           color:#fff; padding:8px 18px; border-radius:10px;
+                           font-size:0.85rem; font-weight:700; cursor:pointer;
+                           backdrop-filter:blur(6px);"
+                    id="dash-video-label">
+                    <i class="fa-solid fa-film"></i>
+                    {% if current_user.dashboard_video %}Change Banner Video{% else %}Upload Banner Video{% endif %}
+                </label>
+                <input type="file" id="dash-video-input" accept="video/mp4,video/webm"
+                    style="display:none;" onchange="uploadDashboardVideo(this)">
+                <span id="dash-video-status" style="display:none; margin-left:12px; font-size:0.8rem; color:#4ade80;">
+                    <i class="fa-solid fa-spinner fa-spin"></i> Uploading…
+                </span>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -1095,5 +1117,50 @@ Data Flow:
 
     // Make renderHabitChart globally accessible for manual refresh
     window.renderHabitChart = renderHabitChart;
+
+    // ═══════════════════════════════════════════════════════════
+    // DASHBOARD VIDEO UPLOAD (requires dashboard_video_upload unlock)
+    // ═══════════════════════════════════════════════════════════
+    async function uploadDashboardVideo(input) {
+        const file = input.files[0];
+        if (!file) return;
+        if (file.size > 50 * 1024 * 1024) {
+            alert('Video must be under 50MB.');
+            return;
+        }
+        const status = document.getElementById('dash-video-status');
+        const label  = document.getElementById('dash-video-label');
+        status.style.display = 'inline';
+        const fd = new FormData();
+        fd.append('file', file);
+        try {
+            const res  = await fetch('/profile/upload_dashboard_video', { method: 'POST', body: fd });
+            const data = await res.json();
+            if (data.status === 'success') {
+                status.innerHTML = '<i class="fa-solid fa-check"></i> Done!';
+                status.style.color = '#4ade80';
+                // Hot-swap the video without page reload
+                const vid = document.getElementById('dash-bg-video');
+                if (vid) {
+                    const src = vid.querySelector('source');
+                    if (src) { src.src = data.url; }
+                    else {
+                        const s = document.createElement('source');
+                        s.src = data.url; s.type = 'video/mp4';
+                        vid.insertBefore(s, vid.firstChild);
+                    }
+                    vid.load();
+                }
+                if (label) label.innerHTML = '<i class="fa-solid fa-film"></i> Change Banner Video';
+                setTimeout(() => { status.style.display = 'none'; }, 2500);
+            } else {
+                alert('Upload failed: ' + (data.error || 'Unknown error'));
+                status.style.display = 'none';
+            }
+        } catch(e) {
+            alert('Upload error: ' + e.message);
+            status.style.display = 'none';
+        }
+    }
 </script>
 {% endblock %}

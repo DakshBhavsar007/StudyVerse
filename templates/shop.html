@@ -10,10 +10,23 @@
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════
+     ACTIVE POWER-UPS BANNER
+     ═══════════════════════════════════════════════════════════ -->
+<div id="active-powerups-banner" style="display:none; margin-bottom: 24px;">
+    <div style="background: linear-gradient(135deg, rgba(16,185,129,0.15), rgba(59,130,246,0.1));
+                border: 1px solid rgba(16,185,129,0.4); border-radius: 14px; padding: 16px 20px;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+            <span style="font-size:1.3rem;">⚡</span>
+            <span style="font-weight:700; font-size:1rem; color: #10b981; letter-spacing:0.05em;">ACTIVE POWER-UPS</span>
+        </div>
+        <div id="powerup-slots" style="display:flex; flex-wrap:wrap; gap:10px;"></div>
+    </div>
+</div>
+
 <!-- Search and Filters -->
 <div class="card" style="margin-bottom: 24px; padding: 20px;">
     <div style="display: flex; gap: 16px; flex-wrap: wrap; align-items: center;">
-        <!-- Search Bar -->
         <div style="flex: 1; min-width: 250px;">
             <div style="position: relative;">
                 <i class="fa-solid fa-search"
@@ -22,8 +35,6 @@
                     style="width: 100%; padding: 12px 12px 12px 40px; background: var(--bg-hover); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 0.95rem;">
             </div>
         </div>
-
-        <!-- Filter Buttons -->
         <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="filter-btn active" data-filter="all"
                 style="padding: 10px 20px; background: var(--accent-green); color: black; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
@@ -41,10 +52,12 @@
                 style="padding: 10px 20px; background: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
                 <i class="fa-solid fa-bolt"></i> Power-Ups
             </button>
+            <button class="filter-btn" data-filter="unlock"
+                style="padding: 10px 20px; background: var(--bg-hover); color: var(--text-secondary); border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                <i class="fa-solid fa-unlock"></i> Unlocks
+            </button>
         </div>
     </div>
-
-    <!-- Results Count -->
     <div id="results-count" style="margin-top: 12px; color: var(--text-secondary); font-size: 0.9rem;">
         Showing <span id="visible-count">{{ items|length }}</span> of {{ items|length }} items
     </div>
@@ -55,54 +68,129 @@
         style="grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;">
 
         {% for key, item in items.items() %}
-        <div class="shop-item-card glass-panel" data-item-type="{{ item.type }}" data-item-name="{{ item.name|lower }}"
-            style="position: relative; overflow: hidden;">
-            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: {{ item.color }};">
-            </div>
+        <div class="shop-item-card glass-panel"
+             data-item-type="{{ item.type }}"
+             data-item-name="{{ item.name|lower }}"
+             data-item-id="{{ item.id }}"
+             style="position: relative; overflow: hidden;">
 
-            <div
-                style="padding: 24px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 16px;">
-                <div
-                    style="width: 80px; height: 80px; border-radius: 20px; background: var(--bg-hover); display: grid; place-items: center; font-size: 2.5rem; color: {{ item.color }}; box-shadow: 0 0 30px {{ item.color }}20;">
+            <!-- Top accent bar -->
+            <div style="position: absolute; top: 0; left: 0; width: 100%; height: 6px; background: {{ item.color }};"></div>
+
+            <!-- Active glow overlay for consumables (JS-controlled) -->
+            {% if item.type == 'consumable' %}
+            <div class="powerup-active-overlay" id="overlay-{{ item.id }}"
+                 style="display:none; position:absolute; inset:0; border-radius:16px;
+                        background: linear-gradient(135deg, {{ item.color }}22, transparent);
+                        border: 2px solid {{ item.color }}88; pointer-events:none; z-index:1;
+                        animation: pulseGlow 2.5s ease-in-out infinite;">
+                <div style="position:absolute; top:10px; right:10px;
+                             background:{{ item.color }}; color:#000; font-size:0.62rem;
+                             font-weight:900; padding:3px 8px; border-radius:20px;
+                             letter-spacing:0.08em; text-transform:uppercase;">Active</div>
+            </div>
+            {% endif %}
+
+            <!-- Premium unlock badge -->
+            {% if item.type == 'unlock' %}
+            <div style="position:absolute; top:14px; right:14px; z-index:3;
+                         background: linear-gradient(135deg, #fbbf24, #f59e0b);
+                         color:#000; font-size:0.6rem; font-weight:900;
+                         padding:3px 8px; border-radius:20px; letter-spacing:0.08em;">
+                PREMIUM
+            </div>
+            {% endif %}
+
+            <div style="padding: 24px; display: flex; flex-direction: column;
+                        align-items: center; text-align: center; gap: 16px;
+                        position:relative; z-index:2;">
+
+                <div style="width: 80px; height: 80px; border-radius: 20px;
+                            background: var(--bg-hover); display: grid; place-items: center;
+                            font-size: 2.5rem; color: {{ item.color }};
+                            box-shadow: 0 0 30px {{ item.color }}20;">
                     <i class="fa-solid {{ item.icon }}"></i>
                 </div>
 
                 <div>
                     <h3 style="font-size: 1.2rem; margin-bottom: 8px;">{{ item.name }}</h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">{{ item.description }}
-                    </p>
+                    <p style="color: var(--text-secondary); font-size: 0.9rem; line-height: 1.5;">{{ item.description }}</p>
                 </div>
 
+                <!-- Live countdown badge (JS-shown for active consumables) -->
+                {% if item.type == 'consumable' %}
+                <div class="powerup-timer" id="timer-{{ item.id }}"
+                     style="display:none; font-size:0.8rem; color:{{ item.color }};
+                            font-weight:700; background:{{ item.color }}18;
+                            padding:5px 14px; border-radius:20px; letter-spacing:0.04em;">
+                    <i class="fa-solid fa-clock"></i> <span class="countdown"></span> remaining
+                </div>
+                {% endif %}
+
                 <div style="margin-top: auto; width: 100%;">
+
                     {% if item.id in active_ids %}
+                    {# Equipped themes / frames — show Unequip #}
                     <form action="{{ url_for('shop_unequip', item_id=item.id) }}" method="POST">
                         <button type="submit" class="buy-btn"
-                            style="width: 100%; padding: 12px; background: rgba(74, 222, 128, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            style="width: 100%; padding: 12px;
+                                   background: rgba(74, 222, 128, 0.2);
+                                   color: var(--accent-green);
+                                   border: 1px solid var(--accent-green);
+                                   border-radius: 8px; font-weight: 600; cursor: pointer;">
                             <i class="fa-solid fa-check-circle"></i> Unequip
                         </button>
                     </form>
-                    {% elif item.id in owned_ids and item.type != 'consumable' %}
+
+                    {% elif item.id in owned_ids and item.type in ('theme', 'frame') %}
+                    {# Owned theme/frame not equipped — show Equip #}
                     <form action="{{ url_for('shop_equip', item_id=item.id) }}" method="POST">
                         <button type="submit" class="buy-btn"
-                            style="width: 100%; padding: 12px; background: rgba(255,255,255,0.1); color: white; border: 1px solid var(--border); border-radius: 8px; font-weight: 600; cursor: pointer;">
+                            style="width: 100%; padding: 12px;
+                                   background: rgba(255,255,255,0.1); color: white;
+                                   border: 1px solid var(--border);
+                                   border-radius: 8px; font-weight: 600; cursor: pointer;">
                             Equip
                         </button>
                     </form>
+
+                    {% elif item.type == 'unlock' and item.id in owned_ids %}
+                    {# Owned unlock item — show Go Upload button #}
+                    <a href="/profile"
+                        style="display:block; width: 100%; padding: 12px;
+                               background: {{ item.color }}; color: black;
+                               border: none; border-radius: 8px;
+                               font-weight: 700; cursor: pointer;
+                               text-decoration: none; text-align: center;
+                               box-shadow: 0 4px 15px {{ item.color }}44;">
+                        <i class="fa-solid fa-arrow-up-from-bracket"></i> Go Upload
+                    </a>
+
                     {% elif item.type == 'consumable' %}
+                    {# Consumables are always re-purchasable #}
                     <form action="{{ url_for('shop_buy', item_id=item.id) }}" method="POST">
                         <button type="submit" class="buy-btn"
-                            style="width: 100%; padding: 12px; background: {{ item.color }}; color: black; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
+                            style="width: 100%; padding: 12px;
+                                   background: {{ item.color }}; color: black;
+                                   border: none; border-radius: 8px;
+                                   font-weight: 600; cursor: pointer; transition: transform 0.2s;">
                             <i class="fa-solid fa-bolt"></i> Buy for {{ item.price }} XP
                         </button>
                     </form>
+
                     {% else %}
+                    {# Not owned — standard Buy #}
                     <form action="{{ url_for('shop_buy', item_id=item.id) }}" method="POST">
                         <button type="submit" class="buy-btn"
-                            style="width: 100%; padding: 12px; background: {{ item.color }}; color: black; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: transform 0.2s;">
+                            style="width: 100%; padding: 12px;
+                                   background: {{ item.color }}; color: black;
+                                   border: none; border-radius: 8px;
+                                   font-weight: 600; cursor: pointer; transition: transform 0.2s;">
                             Buy for {{ item.price }} XP
                         </button>
                     </form>
                     {% endif %}
+
                 </div>
             </div>
         </div>
@@ -119,139 +207,166 @@
         border-radius: 16px;
         transition: transform 0.3s, box-shadow 0.3s;
     }
-
     .shop-item-card:hover {
         transform: translateY(-3px);
         box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
         border-color: rgba(255, 255, 255, 0.15);
     }
-
     .buy-btn:not(:disabled):hover {
         transform: scale(1.02);
         filter: brightness(1.1);
     }
+    @keyframes pulseGlow {
+        0%, 100% { opacity: 0.55; }
+        50%       { opacity: 1; }
+    }
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .filter-btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    #shop-search:focus {
+        outline: none;
+        border-color: var(--accent-green);
+        box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
+    }
 </style>
-
 {% endblock %}
+
 {% block scripts %}
 <script>
-    document.querySelector('[data-nav="shop"]').classList.add('active');
+document.querySelector('[data-nav="shop"]').classList.add('active');
 
-    // Filter and Search Functionality
-    const searchInput = document.getElementById('shop-search');
-    const filterBtns = document.querySelectorAll('.filter-btn');
-    const shopItems = document.querySelectorAll('.shop-item-card');
-    const visibleCount = document.getElementById('visible-count');
+// ═══════════════════════════════════════════════════════════════
+// ACTIVE POWER-UPS BANNER
+// ═══════════════════════════════════════════════════════════════
+let activePowerups    = [];
+let countdownInterval = null;
 
-    let currentFilter = 'all';
-    let currentSearch = '';
+function msLeft(iso) { return Math.max(0, new Date(iso).getTime() - Date.now()); }
 
-    // Update visible items count
-    function updateCount() {
-        const visible = Array.from(shopItems).filter(item => item.style.display !== 'none').length;
-        visibleCount.textContent = visible;
-    }
+function fmtTime(iso) {
+    const ms = msLeft(iso);
+    const h  = Math.floor(ms / 3600000);
+    const m  = Math.floor((ms % 3600000) / 60000);
+    const s  = Math.floor((ms % 60000) / 1000);
+    return h > 0 ? `${h}h ${m}m` : m > 0 ? `${m}m ${s}s` : `${s}s`;
+}
 
-    // Filter items
-    function filterItems() {
-        let visibleItems = 0;
+function renderBanner() {
+    const banner = document.getElementById('active-powerups-banner');
+    const slots  = document.getElementById('powerup-slots');
+    const alive  = activePowerups.filter(p => !p.expires_at || msLeft(p.expires_at) > 0);
+    if (!alive.length) { banner.style.display = 'none'; return; }
+    banner.style.display = 'block';
+    slots.innerHTML = alive.map(p => `
+        <div style="display:flex;align-items:center;gap:8px;background:${p.color}22;
+                    border:1px solid ${p.color}66;border-radius:10px;padding:8px 14px;">
+            <i class="fa-solid ${p.icon}" style="color:${p.color};font-size:1rem;"></i>
+            <div>
+                <div style="font-weight:700;font-size:0.85rem;color:${p.color};">${p.name}</div>
+                ${p.expires_at
+                    ? `<div class="slot-cd" data-exp="${p.expires_at}" style="font-size:0.72rem;color:var(--text-secondary);"><i class="fa-solid fa-clock"></i> ${fmtTime(p.expires_at)}</div>`
+                    : `<div style="font-size:0.72rem;color:var(--text-secondary);">Active</div>`}
+            </div>
+        </div>`).join('');
+}
 
-        shopItems.forEach(item => {
-            const itemType = item.dataset.itemType;
-            const itemName = item.dataset.itemName;
-
-            // Check filter
-            const matchesFilter = currentFilter === 'all' || itemType === currentFilter;
-
-            // Check search
-            const matchesSearch = currentSearch === '' || itemName.includes(currentSearch.toLowerCase());
-
-            // Show/hide item
-            if (matchesFilter && matchesSearch) {
-                item.style.display = 'block';
-                item.style.animation = 'fadeIn 0.3s ease-in';
-                visibleItems++;
-            } else {
-                item.style.display = 'none';
-            }
-        });
-
-        updateCount();
-
-        // Show "no results" message if needed
-        const grid = document.getElementById('shop-items-grid');
-        let noResults = document.getElementById('no-results');
-
-        if (visibleItems === 0) {
-            if (!noResults) {
-                noResults = document.createElement('div');
-                noResults.id = 'no-results';
-                noResults.style.cssText = 'grid-column: 1 / -1; text-align: center; padding: 60px 20px; color: var(--text-secondary);';
-                noResults.innerHTML = `
-                    <i class="fa-solid fa-search" style="font-size: 3rem; opacity: 0.3; margin-bottom: 16px;"></i>
-                    <p style="font-size: 1.1rem; margin-bottom: 8px;">No items found</p>
-                    <p style="font-size: 0.9rem; opacity: 0.7;">Try adjusting your search or filters</p>
-                `;
-                grid.appendChild(noResults);
-            }
-        } else if (noResults) {
-            noResults.remove();
+function applyGlows() {
+    document.querySelectorAll('.powerup-active-overlay').forEach(e => e.style.display = 'none');
+    document.querySelectorAll('.powerup-timer').forEach(e => e.style.display = 'none');
+    activePowerups.forEach(p => {
+        if (p.expires_at && msLeft(p.expires_at) <= 0) return;
+        const ov = document.getElementById('overlay-' + p.item_id);
+        if (ov) ov.style.display = 'block';
+        if (p.expires_at) {
+            const t = document.getElementById('timer-' + p.item_id);
+            if (t) { t.style.display = 'block'; t.querySelector('.countdown').textContent = fmtTime(p.expires_at); }
         }
-    }
+    });
+}
 
-    // Search input handler
-    searchInput.addEventListener('input', (e) => {
-        currentSearch = e.target.value;
+function tick() {
+    document.querySelectorAll('.slot-cd').forEach(el => {
+        if (el.dataset.exp) el.innerHTML = `<i class="fa-solid fa-clock"></i> ${fmtTime(el.dataset.exp)}`;
+    });
+    activePowerups.forEach(p => {
+        if (!p.expires_at) return;
+        const t = document.getElementById('timer-' + p.item_id);
+        if (t && t.style.display !== 'none') {
+            const cd = t.querySelector('.countdown');
+            if (cd) cd.textContent = fmtTime(p.expires_at);
+        }
+    });
+    const prev = activePowerups.length;
+    activePowerups = activePowerups.filter(p => !p.expires_at || msLeft(p.expires_at) > 0);
+    if (activePowerups.length !== prev) { renderBanner(); applyGlows(); }
+}
+
+async function loadPowerups() {
+    try {
+        const res = await fetch('/api/shop/active-powerups');
+        const d   = await res.json();
+        if (d.status === 'success') {
+            activePowerups = d.powerups;
+            renderBanner(); applyGlows();
+            if (countdownInterval) clearInterval(countdownInterval);
+            if (activePowerups.some(p => p.expires_at))
+                countdownInterval = setInterval(tick, 1000);
+        }
+    } catch(e) { console.warn('Powerups load failed:', e); }
+}
+loadPowerups();
+
+// ═══════════════════════════════════════════════════════════════
+// FILTER + SEARCH
+// ═══════════════════════════════════════════════════════════════
+const searchInput  = document.getElementById('shop-search');
+const filterBtns   = document.querySelectorAll('.filter-btn');
+const shopItems    = document.querySelectorAll('.shop-item-card');
+const visibleCount = document.getElementById('visible-count');
+let currentFilter  = 'all';
+let currentSearch  = '';
+
+function filterItems() {
+    let vis = 0;
+    shopItems.forEach(item => {
+        const ok = (currentFilter === 'all' || item.dataset.itemType === currentFilter)
+                && (!currentSearch || item.dataset.itemName.includes(currentSearch.toLowerCase()));
+        item.style.display = ok ? 'block' : 'none';
+        if (ok) { item.style.animation = 'fadeIn 0.3s ease-in'; vis++; }
+    });
+    visibleCount.textContent = vis;
+    const grid = document.getElementById('shop-items-grid');
+    let noR = document.getElementById('no-results');
+    if (!vis) {
+        if (!noR) {
+            noR = document.createElement('div'); noR.id = 'no-results';
+            noR.style.cssText = 'grid-column:1/-1;text-align:center;padding:60px 20px;color:var(--text-secondary);';
+            noR.innerHTML = `<i class="fa-solid fa-search" style="font-size:3rem;opacity:0.3;margin-bottom:16px;"></i><p>No items found</p>`;
+            grid.appendChild(noR);
+        }
+    } else if (noR) noR.remove();
+}
+
+searchInput.addEventListener('input', e => { currentSearch = e.target.value; filterItems(); });
+filterBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+        filterBtns.forEach(b => {
+            b.classList.remove('active');
+            b.style.background = 'rgba(255,255,255,0.1)';
+            b.style.color      = 'var(--text-secondary)';
+            b.style.border     = '1px solid var(--border)';
+        });
+        btn.classList.add('active');
+        btn.style.background = 'var(--accent-green)';
+        btn.style.color = 'black'; btn.style.border = 'none';
+        currentFilter = btn.dataset.filter;
         filterItems();
     });
-
-    // Filter button handlers
-    filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            // Update active state
-            filterBtns.forEach(b => {
-                b.classList.remove('active');
-                b.style.background = 'rgba(255,255,255,0.1)';
-                b.style.color = 'var(--text-secondary)';
-                b.style.border = '1px solid var(--border)';
-            });
-
-            btn.classList.add('active');
-            btn.style.background = 'var(--accent-green)';
-            btn.style.color = 'black';
-            btn.style.border = 'none';
-
-            // Update filter
-            currentFilter = btn.dataset.filter;
-            filterItems();
-        });
-    });
-
-    // Add fade-in animation
-    const style = document.createElement('style');
-    style.textContent = `
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        .filter-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        
-        #shop-search:focus {
-            outline: none;
-            border-color: var(--accent-green);
-            box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.1);
-        }
-    `;
-    document.head.appendChild(style);
+});
 </script>
 {% endblock %}
