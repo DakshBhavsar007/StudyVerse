@@ -114,6 +114,13 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = true;
         const btn = $('btn-create'); if (btn) { btn.textContent='Create Room'; btn.disabled=false; }
         enterWaiting(data);
+        // Host is always team A (first player)
+        const badge = document.createElement('div');
+        badge.className = 'team-badge';
+        badge.style.cssText = 'margin-top:0.5rem;padding:4px 12px;border-radius:12px;font-size:0.85rem;font-weight:700;display:inline-block;background:rgba(96,165,250,0.2);color:#60a5fa;border:1px solid #60a5fa;';
+        badge.textContent = 'You are on Team A (Host)';
+        const wr = $('wr-slots');
+        if (wr) { const existing = wr.parentNode.querySelector('.team-badge'); if(existing) existing.remove(); wr.parentNode.insertBefore(badge, wr.nextSibling); }
         socket.emit('battle_entered', { room_code: currentRoom });
     });
 
@@ -147,8 +154,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const ms  = $('mm-status');  if (ms) ms.style.display = 'none';
         currentRoom = data.room_code;
         sessionStorage.setItem('battle_room_code', currentRoom);
+        const total = data.players ? data.players.length : 2;
         enterWaiting({ room_code: data.room_code, mode: data.mode, visibility:'public',
-            slots_total: data.players ? data.players.length : 2, slots_filled: data.players ? data.players.length : 2 });
+            slots_total: total, slots_filled: total });
         socket.emit('battle_entered', { room_code: currentRoom });
     });
 
@@ -205,14 +213,28 @@ document.addEventListener('DOMContentLoaded', () => {
         const ml = $('wr-mode-label');
         if (ml) ml.textContent = ml.textContent.replace(/\d+\/\d+/, `${data.slots_filled}/${data.slots_total}`);
         toast(`👋 ${data.name} joined!`, 'success');
+        dbg(`Players: ${data.slots_filled}/${data.slots_total}`);
     });
 
     socket.on('battle_enter_room', data => {
         currentRoom = data.room_code;
         sessionStorage.setItem('battle_room_code', currentRoom);
         const btn = $('btn-join'); if (btn) { btn.textContent='Join'; btn.disabled=false; }
-        enterWaiting({ room_code:data.room_code, mode:data.mode, visibility:'public', slots_total:data.slots_total, slots_filled:data.slots_filled });
+        enterWaiting({ room_code:data.room_code, mode:data.mode, visibility: data.visibility||'public', slots_total:data.slots_total, slots_filled:data.slots_filled });
         setTeams(data.players||{});
+        // Show team assignment
+        if (data.your_team) {
+            const myTeam = data.your_team;
+            const badge = document.createElement('div');
+            badge.className = 'team-badge';
+            badge.style.cssText = 'margin-top:0.5rem;padding:4px 12px;border-radius:12px;font-size:0.85rem;font-weight:700;display:inline-block;';
+            badge.style.background = myTeam === 'A' ? 'rgba(96,165,250,0.2)' : 'rgba(248,113,113,0.2)';
+            badge.style.color = myTeam === 'A' ? '#60a5fa' : '#f87171';
+            badge.style.border = `1px solid ${myTeam === 'A' ? '#60a5fa' : '#f87171'}`;
+            badge.textContent = `You are on Team ${myTeam}`;
+            const wr = $('wr-slots');
+            if (wr) { const existing = wr.parentNode.querySelector('.team-badge'); if (existing) existing.remove(); wr.parentNode.insertBefore(badge, wr.nextSibling); }
+        }
         socket.emit('battle_entered', { room_code: data.room_code });
     });
 
@@ -288,14 +310,28 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ════════════════════════════════════
        BATTLE SCREEN
     ════════════════════════════════════ */
-    socket.on('battle_entered', data => {
-        if (!currentRoom && data && data.room_code) currentRoom = data.room_code;
-        const rd = $('room-display'); if(rd) rd.textContent = currentRoom;
-        chatMsg('ByteBot','✅ All players ready! Host: type /start or /config easy python','system');
+    socket.on('battle_team_assigned', data => {
+        // Update team display in waiting room
+        if (data.players) setTeams(data.players);
+        const ml = $('wr-mode-label');
+        if (ml) ml.textContent = `Mode: ${data.mode||'1v1'} · ${(data.slots_filled||1)}/${data.slots_total||2} players`;
+        buildSlots(data.slots_filled||1, data.slots_total||2);
+        // Show player's own team
+        const myTeam = data.team;
+        if (myTeam) {
+            const badge = document.createElement('div');
+            badge.style.cssText = 'margin-top:0.5rem;padding:4px 12px;border-radius:12px;font-size:0.85rem;font-weight:700;display:inline-block;';
+            badge.style.background = myTeam === 'A' ? 'rgba(96,165,250,0.2)' : 'rgba(248,113,113,0.2)';
+            badge.style.color = myTeam === 'A' ? '#60a5fa' : '#f87171';
+            badge.style.border = `1px solid ${myTeam === 'A' ? '#60a5fa' : '#f87171'}`;
+            badge.textContent = `You are on Team ${myTeam}`;
+            const wr = $('wr-slots');
+            if (wr) { const existing = wr.parentNode.querySelector('.team-badge'); if (existing) existing.remove(); badge.className='team-badge'; wr.parentNode.insertBefore(badge, wr.nextSibling); }
+        }
     });
 
     socket.on('battle_started', data => {
-        showScreen('screen-battle');
+        dbg('Battle started!');
         const mode = data.mode || '1v1';
         const badge=$('mode-badge'), rd=$('room-display'), ld=$('lang-display'), sb=$('team-scorebar');
         if(badge) badge.textContent = mode;
@@ -320,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if(ce) ce.value='';
         if(sb2) { sb2.disabled=false; sb2.textContent='SUBMIT CODE'; }
         if(data.duration) startTimer(data.duration);
+        showScreen('screen-battle');
     });
 
     /* ── Chat input ── */
