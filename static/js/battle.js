@@ -114,7 +114,6 @@ document.addEventListener('DOMContentLoaded', () => {
         isHost = true;
         const btn = $('btn-create'); if (btn) { btn.textContent='Create Room'; btn.disabled=false; }
         enterWaiting(data);
-        showTeamBadge('A');
         socket.emit('battle_entered', { room_code: currentRoom });
     });
 
@@ -148,18 +147,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const ms  = $('mm-status');  if (ms) ms.style.display = 'none';
         currentRoom = data.room_code;
         sessionStorage.setItem('battle_room_code', currentRoom);
-        const total = data.players ? data.players.length : 2;
         enterWaiting({ room_code: data.room_code, mode: data.mode, visibility:'public',
-            slots_total: total, slots_filled: total });
-        // Build team display from player list
-        if (data.players) {
-            const pMap = {};
-            data.players.forEach(p => { pMap[p.name] = p; });
-            setTeams(pMap);
-        }
-        if (data.your_team) showTeamBadge(data.your_team);
-        dbg('Match found! Room=' + data.room_code + ' Team=' + data.your_team);
-        // Tell server we're in the UI — this triggers join_room + battle start
+            slots_total: data.players ? data.players.length : 2, slots_filled: data.players ? data.players.length : 2 });
         socket.emit('battle_entered', { room_code: currentRoom });
     });
 
@@ -210,70 +199,34 @@ document.addEventListener('DOMContentLoaded', () => {
         if (bEl) bEl.innerHTML = b.length ? b.map(n=>`<div>• ${n}</div>`).join('') : '—';
     }
 
-    function showTeamBadge(team) {
-        const wr = $('wr-slots');
-        if (!wr) return;
-        const old = wr.parentNode.querySelector('.team-badge');
-        if (old) old.remove();
-        const b = document.createElement('div');
-        b.className = 'team-badge';
-        const isA = team === 'A';
-        b.style.cssText = `margin-top:0.75rem;padding:5px 16px;border-radius:16px;font-size:0.85rem;font-weight:700;display:inline-block;${isA?'background:rgba(96,165,250,.2);color:#60a5fa;border:1px solid #60a5fa':'background:rgba(248,113,113,.2);color:#f87171;border:1px solid #f87171'}`;
-        b.textContent = `You are on Team ${team}`;
-        wr.parentNode.insertBefore(b, wr.nextSibling);
-    }
-
     socket.on('battle_player_joined', data => {
         buildSlots(data.slots_filled, data.slots_total);
         setTeams(data.players||{});
         const ml = $('wr-mode-label');
         if (ml) ml.textContent = ml.textContent.replace(/\d+\/\d+/, `${data.slots_filled}/${data.slots_total}`);
         toast(`👋 ${data.name} joined!`, 'success');
-        dbg(`Players ${data.slots_filled}/${data.slots_total}`);
     });
 
     socket.on('battle_enter_room', data => {
         currentRoom = data.room_code;
         sessionStorage.setItem('battle_room_code', currentRoom);
         const btn = $('btn-join'); if (btn) { btn.textContent='Join'; btn.disabled=false; }
-        enterWaiting({
-            room_code: data.room_code, mode: data.mode,
-            visibility: data.visibility || 'public',
-            slots_total: data.slots_total, slots_filled: data.slots_filled
-        });
-        setTeams(data.players || {});
-        if (data.your_team) showTeamBadge(data.your_team);
-        dbg('Joined room ' + data.room_code + ' Team=' + data.your_team);
+        enterWaiting({ room_code:data.room_code, mode:data.mode, visibility:'public', slots_total:data.slots_total, slots_filled:data.slots_filled });
+        setTeams(data.players||{});
         socket.emit('battle_entered', { room_code: data.room_code });
     });
 
     socket.on('battle_rejoined', data => {
         currentRoom = data.room_code;
         sessionStorage.setItem('battle_room_code', currentRoom);
-        const state = data.state || 'waiting';
-        dbg('Rejoined state=' + state);
-        if (state === 'battle') {
-            const badge=$('mode-badge'); if(badge) badge.textContent=data.mode||'1v1';
-            const rd=$('room-display'); if(rd) rd.textContent=currentRoom;
-            if(data.config){const ld=$('lang-display');if(ld)ld.textContent=data.config.language||'Python';}
-            if(data.problem){
-                const pt=$('problem-title'),pd=$('problem-desc');
-                if(pt) pt.textContent=data.problem.title||'Problem';
-                if(pd) pd.textContent=data.problem.description||'';
-            }
-            setStatus('BATTLE IN PROGRESS');
+        if (data.state && data.state !== 'waiting') {
             showScreen('screen-battle');
-        } else if (state === 'ready' || state === 'starting') {
-            enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public',
-                slots_total:data.slots_total||2, slots_filled:data.slots_filled||2 });
-            setTeams(data.players||{});
-            if(data.your_team) showTeamBadge(data.your_team);
-            chatMsg('ByteBot','⏳ Battle starting soon...','system');
+            const rd = $('room-display'); if (rd) rd.textContent = currentRoom;
+            setStatus('BATTLE IN PROGRESS');
+            chatMsg('ByteBot','Reconnected.','system');
         } else {
-            enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public',
-                slots_total:data.slots_total||2, slots_filled:data.slots_filled||1 });
+            enterWaiting({ room_code:data.room_code, mode:data.mode||'1v1', visibility:'public', slots_total:data.slots_total||2, slots_filled:data.slots_filled||1 });
             setTeams(data.players||{});
-            if(data.your_team) showTeamBadge(data.your_team);
         }
     });
 
@@ -335,45 +288,38 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ════════════════════════════════════
        BATTLE SCREEN
     ════════════════════════════════════ */
-    // Server sends team/status info to THIS player only (not broadcast)
-    socket.on('battle_room_status', data => {
-        if (data.your_team) showTeamBadge(data.your_team);
-        const players = {};
-        (data.team_a||[]).forEach(n => players[n] = {name:n, team:'A'});
-        (data.team_b||[]).forEach(n => players[n] = {name:n, team:'B'});
-        setTeams(players);
-        buildSlots(data.slots_filled||1, data.slots_total||2);
-        dbg(`In room. Team ${data.your_team}. ${data.slots_filled}/${data.slots_total}`);
+    socket.on('battle_entered', data => {
+        if (!currentRoom && data && data.room_code) currentRoom = data.room_code;
+        const rd = $('room-display'); if(rd) rd.textContent = currentRoom;
+        chatMsg('ByteBot','✅ All players ready! Host: type /start or /config easy python','system');
     });
 
     socket.on('battle_started', data => {
-        dbg('Battle started!');
-        if (data.room_code && !currentRoom) currentRoom = data.room_code;
+        showScreen('screen-battle');
         const mode = data.mode || '1v1';
-        const badge=$('mode-badge'); if(badge) badge.textContent=mode;
-        const rd=$('room-display'); if(rd) rd.textContent=currentRoom;
-        if(data.config){const ld=$('lang-display');if(ld)ld.textContent=data.config.language||'Python';}
+        const badge=$('mode-badge'), rd=$('room-display'), ld=$('lang-display'), sb=$('team-scorebar');
+        if(badge) badge.textContent = mode;
+        if(rd) rd.textContent = currentRoom;
+        if(data.config && ld) ld.textContent = data.config.language || 'Python';
         setStatus('BATTLE IN PROGRESS');
-        const sb=$('team-scorebar');
-        if(mode!=='1v1'&&sb){
-            sb.style.display='flex';
-            if(data.teams) chatMsg('ByteBot',`⚔️ Teams:\n🔵 A: ${(data.teams.A||[]).join(', ')}\n🔴 B: ${(data.teams.B||[]).join(', ')}`,'system');
+        if(mode !== '1v1' && sb) {
+            sb.style.display = 'flex';
+            if(data.teams) chatMsg('ByteBot',`⚔️ Teams –\n🔵 A: ${(data.teams.A||[]).join(', ')}\n🔴 B: ${(data.teams.B||[]).join(', ')}`,'system');
         }
-        if(data.problem){
+        if(data.problem) {
             const pt=$('problem-title'),pd=$('problem-desc'),pp=$('problem-details'),pi=$('prob-in'),po=$('prob-out');
-            if(pt) pt.textContent=data.problem.title||'Problem';
-            if(pd) pd.textContent=data.problem.description||'';
-            if(data.problem.examples&&data.problem.examples.length&&pi&&po){
-                pi.textContent=data.problem.examples[0].input||'';
-                po.textContent=data.problem.examples[0].output||'';
+            if(pt) pt.textContent = data.problem.title || 'Problem';
+            if(pd) pd.textContent = data.problem.description || '';
+            if(data.problem.examples && data.problem.examples.length && pi && po) {
+                pi.textContent = data.problem.examples[0].input  || '';
+                po.textContent = data.problem.examples[0].output || '';
                 if(pp) pp.classList.remove('hidden');
             }
         }
         const ce=$('code-editor'),sb2=$('btn-submit');
         if(ce) ce.value='';
-        if(sb2){sb2.disabled=false;sb2.textContent='SUBMIT CODE';}
+        if(sb2) { sb2.disabled=false; sb2.textContent='SUBMIT CODE'; }
         if(data.duration) startTimer(data.duration);
-        showScreen('screen-battle');
     });
 
     /* ── Chat input ── */
@@ -459,8 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     socket.on('battle_error', data => {
         const msg = data.message || 'Error.';
         toast('❌ '+msg,'error'); dbg('Err: '+msg);
-        const inBattle = $('screen-battle') && !$('screen-battle').classList.contains('hidden');
-        if (!inBattle && (msg.includes('Invalid')||msg.includes('expired')||msg.includes('not in this room')||msg.includes('already started'))) {
+        if(msg.includes('Invalid')||msg.includes('expired')||msg.includes('not in this room')) {
             sessionStorage.removeItem('battle_room_code'); currentRoom=null; showScreen('screen-entry');
         }
         const bj=$('btn-join'); if(bj&&bj.disabled){bj.textContent='Join';bj.disabled=false;}
@@ -497,6 +442,87 @@ document.addEventListener('DOMContentLoaded', () => {
         sessionStorage.removeItem('battle_room_code'); currentRoom=null;
         window.location.href='/battle';
     };
+
+    /* ════════════════════════════════════
+       LEADERBOARD
+    ════════════════════════════════════ */
+    const RANK_COLORS = {
+        'Recruit':'#9CA3AF','Bronze':'#CD7F32','Silver':'#C0C0C0',
+        'Gold':'#FFD700','Platinum':'#E5E4E2','Diamond':'#b9f2ff',
+        'Heroic':'#ff4d4d','Master':'#ff0000','Grandmaster':'#800080'
+    };
+    const RANK_ICONS = {
+        'Recruit':'🛡','Bronze':'🛡','Silver':'🛡','Gold':'⭐',
+        'Platinum':'💎','Diamond':'💎','Heroic':'👑','Master':'👑','Grandmaster':'🐉'
+    };
+    const MEDAL = ['🥇','🥈','🥉'];
+
+    async function openLeaderboard() {
+        const modal = $('modal-leaderboard');
+        if (!modal) return;
+        modal.style.display = 'flex';
+        const tbody = $('lb-tbody');
+        if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#555;">Loading…</td></tr>';
+
+        try {
+            const [lbRes, meRes] = await Promise.all([
+                fetch('/api/battle/leaderboard'),
+                fetch('/api/battle/my_rank')
+            ]);
+            const rows = await lbRes.json();   // plain array
+            const me   = await meRes.json();   // {rank:{name,color,xp}, wins, losses}
+
+            // My card
+            if (me && me.rank) {
+                const col = RANK_COLORS[me.rank.name] || '#9ca3af';
+                const ico = RANK_ICONS[me.rank.name]  || '🛡';
+                const meRank = $('lb-me-rank');
+                const meXp   = $('lb-me-xp');
+                const meRec  = $('lb-me-record');
+                if (meRank) meRank.innerHTML = `<span style="color:${col}">${ico} ${me.rank.name}</span>`;
+                if (meXp)   meXp.textContent  = `${(me.rank.xp||0).toLocaleString()} XP`;
+                if (meRec)  meRec.textContent  = `${me.wins||0}W / ${me.losses||0}L`;
+            }
+
+            // Table
+            if (!tbody) return;
+            if (!rows.length) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#555;">No battles yet — be the first! ⚔️</td></tr>';
+                return;
+            }
+            tbody.innerHTML = rows.map((p, i) => {
+                const pos   = i + 1;
+                const col   = RANK_COLORS[p.rank] || '#9ca3af';
+                const ico   = RANK_ICONS[p.rank]  || '🛡';
+                const medal = MEDAL[i] || `<span style="color:#555;font-size:0.85rem;">${pos}</span>`;
+                const isMe  = me && me.rank && (me.rank.xp === p.battle_xp) && (me.wins === p.wins);
+                const rowBg = isMe ? 'background:rgba(59,130,246,0.08);' : (i%2===0?'':'background:rgba(255,255,255,0.02);');
+                return `<tr style="border-bottom:1px solid #1a1a1a;${rowBg}">
+                    <td style="padding:0.55rem 0.5rem;text-align:center;font-size:1rem;">${medal}</td>
+                    <td style="padding:0.55rem 0.5rem;">
+                        <div style="display:flex;align-items:center;gap:0.5rem;">
+                            ${p.avatar
+                                ? `<img src="${p.avatar}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;">`
+                                : `<div style="width:26px;height:26px;border-radius:50%;background:#333;display:flex;align-items:center;justify-content:center;font-size:0.7rem;">👤</div>`}
+                            <span style="font-weight:${isMe?700:400};color:${isMe?'#60a5fa':'#e5e5e5'}">${p.name}${isMe?' ✦':''}</span>
+                        </div>
+                    </td>
+                    <td style="padding:0.55rem 0.5rem;text-align:center;"><span style="color:${col};font-size:0.82rem;white-space:nowrap;">${ico} ${p.rank}</span></td>
+                    <td style="padding:0.55rem 0.5rem;text-align:right;color:#60a5fa;font-weight:600;">${(p.battle_xp||0).toLocaleString()}</td>
+                    <td style="padding:0.55rem 0.5rem;text-align:right;color:#6b7280;font-size:0.82rem;">${p.wins||0}W&nbsp;/&nbsp;${p.losses||0}L</td>
+                </tr>`;
+            }).join('');
+
+        } catch(e) {
+            if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#ef4444;">Failed to load. Please try again.</td></tr>';
+        }
+    }
+
+    on('btn-leaderboard', 'click', openLeaderboard);
+    on('lb-close', 'click', () => { const m=$('modal-leaderboard'); if(m) m.style.display='none'; });
+    // Close on backdrop click
+    const lbModal = $('modal-leaderboard');
+    if (lbModal) lbModal.addEventListener('click', e => { if (e.target === lbModal) lbModal.style.display = 'none'; });
 
     /* ── Boot ── */
     showScreen('screen-entry');
