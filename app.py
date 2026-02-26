@@ -4521,13 +4521,22 @@ def _add_player_to_room(room_code, user_id, name, sid):
     total_slots = get_total_slots(room['mode'])
     print(f"[Battle] {name} joined {room_code}. {len(room['players'])}/{total_slots}")
 
-    # Auto-start setup when all slots filled
+    # Auto-start battle when all slots are filled
     if len(room['players']) >= total_slots:
         socketio.emit('battle_chat_message', {
             'sender': 'ByteBot',
-            'message': f"🎮 All {total_slots} players have joined! Room is full. Host, configure the battle settings.",
+            'message': f"🎮 All {total_slots} players have joined! Room is full. Starting battle in 3 seconds...",
             'type': 'system'
         }, room=room_code)
+
+        # Set default config if host hasn't configured yet
+        if not room['config']['difficulty']:
+            room['config']['difficulty'] = 'Medium'
+        if not room['config']['language']:
+            room['config']['language'] = 'Python'
+
+        # Auto-trigger battle start in background
+        socketio.start_background_task(start_battle_task, room_code)
 
 
 @socketio.on('battle_join_response')
