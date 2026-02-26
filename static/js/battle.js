@@ -495,7 +495,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const meRec  = $('lb-me-record');
                 if (meRank) meRank.innerHTML = `<span style="color:${col}">${ico} ${me.rank.name}</span>`;
                 if (meXp)   meXp.textContent  = `${(me.rank.xp||0).toLocaleString()} XP`;
-                if (meRec)  meRec.textContent  = `${me.wins||0}W / ${me.losses||0}L`;
+                if (meRec)  meRec.textContent  = `${me.wins||0}W / ${me.draws||0}D / ${me.losses||0}L`;
             }
 
             // Table
@@ -509,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const col   = RANK_COLORS[p.rank] || '#9ca3af';
                 const ico   = RANK_ICONS[p.rank]  || '🛡';
                 const medal = MEDAL[i] || `<span style="color:#555;font-size:0.85rem;">${pos}</span>`;
-                const isMe  = me && me.rank && (me.rank.xp === p.battle_xp) && (me.wins === p.wins);
+                const isMe  = me && me.rank && (me.rank.xp === p.battle_xp) && (me.wins === p.wins) && (me.losses === p.losses);
                 const rowBg = isMe ? 'background:rgba(59,130,246,0.08);' : (i%2===0?'':'background:rgba(255,255,255,0.02);');
                 return `<tr style="border-bottom:1px solid #1a1a1a;${rowBg}">
                     <td style="padding:0.55rem 0.5rem;text-align:center;font-size:1rem;">${medal}</td>
@@ -523,7 +523,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     </td>
                     <td style="padding:0.55rem 0.5rem;text-align:center;"><span style="color:${col};font-size:0.82rem;white-space:nowrap;">${ico} ${p.rank}</span></td>
                     <td style="padding:0.55rem 0.5rem;text-align:right;color:#60a5fa;font-weight:600;">${(p.battle_xp||0).toLocaleString()}</td>
-                    <td style="padding:0.55rem 0.5rem;text-align:right;color:#6b7280;font-size:0.82rem;">${p.wins||0}W&nbsp;/&nbsp;${p.losses||0}L</td>
+                    <td style="padding:0.55rem 0.5rem;text-align:right;color:#6b7280;font-size:0.82rem;">${p.wins||0}W&nbsp;/&nbsp;<span style="color:#f59e0b;">${p.draws||0}D</span>&nbsp;/&nbsp;${p.losses||0}L</td>
                 </tr>`;
             }).join('');
 

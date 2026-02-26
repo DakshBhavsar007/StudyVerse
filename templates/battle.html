@@ -432,7 +432,7 @@
 
             <!-- Battle rank badge -->
             <div style="display:flex;align-items:center;gap:0.5rem;justify-content:center;margin-bottom:1rem;">
-                <i class="fas {{ battle_rank.icon }}" style="color:{{ battle_rank.color }};font-size:1.4rem;"></i>
+                <span style="color:{{ battle_rank.color }};font-size:1.4rem;">{{ battle_rank.icon }}</span>
                 <span style="font-weight:700;color:{{ battle_rank.color }};">{{ battle_rank.name }}</span>
                 <span style="color:var(--battle-text-dim);font-size:0.85rem;">({{ battle_rank.xp }} Battle XP)</span>
             </div>
@@ -672,7 +672,7 @@
                         <th style="text-align:left;padding:0.4rem 0.5rem;">Player</th>
                         <th style="text-align:center;padding:0.4rem 0.5rem;">Rank</th>
                         <th style="text-align:right;padding:0.4rem 0.5rem;">XP</th>
-                        <th style="text-align:right;padding:0.4rem 0.5rem;">W / L</th>
+                        <th style="text-align:right;padding:0.4rem 0.5rem;">W / D / L</th>
                     </tr>
                 </thead>
                 <tbody id="lb-tbody">

@@ -44,9 +44,15 @@
                 <div class="admin-nav-section-label" style="margin-top: 8px;">Management</div>
 
                 <a href="{{ url_for('admin_users') }}"
-                    class="admin-nav-item {% if 'admin_user' in request.endpoint %}active{% endif %}">
+                    class="admin-nav-item {% if 'admin_user' in request.endpoint and request.endpoint != 'admin_user_activity' %}active{% endif %}">
                     <i class="fa-solid fa-users nav-icon"></i>
                     <span>Users</span>
+                </a>
+
+                <a href="{{ url_for('admin_user_activity') }}"
+                    class="admin-nav-item {% if request.endpoint == 'admin_user_activity' %}active{% endif %}">
+                    <i class="fa-solid fa-bolt nav-icon"></i>
+                    <span>User Activity</span>
                 </a>
 
                 <a href="{{ url_for('admin_gamification') }}"

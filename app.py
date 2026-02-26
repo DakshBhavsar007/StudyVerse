@@ -556,26 +556,27 @@ class User(UserMixin, db.Model):
     battle_xp    = db.Column(db.Integer, default=0)   # XP earned exclusively from Byte Battles
     battle_wins  = db.Column(db.Integer, default=0)   # Total battle wins (all modes)
     battle_losses= db.Column(db.Integer, default=0)   # Total battle losses
+    battle_draws = db.Column(db.Integer, default=0)   # Total battle draws
 
     @property
     def battle_rank_info(self):
         """Computed property: Battle rank based on battle_xp (separate from study rank)."""
         bxp = self.battle_xp or 0
         BATTLE_RANKS = [
-            (0,    499,   'Recruit',    'fa-shield-halved', '#9CA3AF'),
-            (500,  1999,  'Bronze',     'fa-shield-halved', '#CD7F32'),
-            (2000, 4999,  'Silver',     'fa-shield-halved', '#C0C0C0'),
-            (5000, 9999,  'Gold',       'fa-star',          '#FFD700'),
-            (10000,19999, 'Platinum',   'fa-gem',           '#E5E4E2'),
-            (20000,34999, 'Diamond',    'fa-gem',           '#b9f2ff'),
-            (35000,59999, 'Heroic',     'fa-crown',         '#ff4d4d'),
-            (60000,99999, 'Master',     'fa-crown',         '#ff0000'),
-            (100000,10**12,'Grandmaster','fa-dragon',       '#800080'),
+            (0,    499,   'Recruit',     '🛡', '#9CA3AF'),
+            (500,  1999,  'Bronze',      '🛡', '#CD7F32'),
+            (2000, 4999,  'Silver',      '🛡', '#C0C0C0'),
+            (5000, 9999,  'Gold',        '⭐', '#FFD700'),
+            (10000,19999, 'Platinum',    '💎', '#E5E4E2'),
+            (20000,34999, 'Diamond',     '💎', '#b9f2ff'),
+            (35000,59999, 'Heroic',      '👑', '#ff4d4d'),
+            (60000,99999, 'Master',      '👑', '#ff0000'),
+            (100000,10**12,'Grandmaster','🐉', '#800080'),
         ]
         for (mn, mx, name, icon, color) in BATTLE_RANKS:
             if mn <= bxp <= mx:
                 return {'name': name, 'icon': icon, 'color': color, 'xp': bxp}
-        return {'name': 'Recruit', 'icon': 'fa-shield-halved', 'color': '#9CA3AF', 'xp': bxp}
+        return {'name': 'Recruit', 'icon': '🛡', 'color': '#9CA3AF', 'xp': bxp}
 
     @property
     def battle_rank(self):
@@ -1909,23 +1910,34 @@ def admin_required(f):
     return decorated_function
 
 # ============================================================================
-# BAN CHECK MIDDLEWARE - Automatically logs out banned users
+# ONLINE USERS TRACKER - In-memory set of currently connected user IDs
+# ============================================================================
+# Tracks user IDs currently active (updated on every request, cleared on logout)
+# Uses a simple set for O(1) add/remove/lookup — resets on server restart (ephemeral by design)
+online_users = set()
+
+# How many minutes of inactivity before a user is considered "offline"
+ONLINE_THRESHOLD_MINUTES = 5
+
+# ============================================================================
+# BAN CHECK + LAST SEEN MIDDLEWARE
 # ============================================================================
 
 @app.before_request
 def check_ban_status():
     """
-    Check if current user is banned before processing any request.
-    If banned, immediately log them out and redirect to auth page.
-    This runs on EVERY request, ensuring banned users cannot access anything.
+    Runs on EVERY request:
+    1. Updates user's last_seen timestamp (powers the admin activity tracker)
+    2. Adds user to the in-memory online_users set
+    3. Checks if user is banned → logs them out immediately if so
     """
-    # Skip ban check for static files and auth routes
+    # Skip for static files and auth routes to avoid unnecessary DB hits
     if request.endpoint and (request.endpoint.startswith('static') or request.endpoint == 'auth'):
         return None
     
-    # Check if user is authenticated and banned
+
     if current_user.is_authenticated:
-        # Reload user from database to get latest ban status
+        # Reload user from DB to get the freshest ban status
         user = User.query.get(current_user.id)
         
         if user and user.is_banned:
@@ -1938,6 +1950,14 @@ def check_ban_status():
             
             # Redirect to auth page
             return redirect(url_for('auth'))
+        # ── Update last_seen + online set ──────────────────────────────────
+        if user:
+            try:
+                user.last_seen = datetime.utcnow()
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+            online_users.add(current_user.id)
     
     return None
 
@@ -4219,14 +4239,17 @@ def ranks_compatible(rank_a, rank_b):
 def api_battle_my_rank():
     return jsonify({'rank': current_user.battle_rank_info,
                     'wins': current_user.battle_wins,
-                    'losses': current_user.battle_losses})
+                    'losses': current_user.battle_losses,
+                    'draws': current_user.battle_draws})
 
 @app.route('/api/battle/leaderboard')
 @login_required
 def api_battle_leaderboard():
     top = User.query.order_by(User.battle_xp.desc()).limit(20).all()
     data = [{'name': u.first_name or u.email, 'battle_xp': u.battle_xp,
-             'rank': u.battle_rank, 'wins': u.battle_wins, 'avatar': u.get_avatar(40)} for u in top]
+             'rank': u.battle_rank, 'wins': u.battle_wins,
+             'losses': u.battle_losses, 'draws': u.battle_draws,
+             'avatar': u.get_avatar(40)} for u in top]
     return jsonify(data)
 
 # ============================================================================
@@ -4909,7 +4932,7 @@ def judge_battle(room_code):
 
 
 def _award_battle_xp(user_id, amount, won: bool, draw: bool = False):
-    """Award battle-specific XP and update win/loss counters."""
+    """Award battle-specific XP and update win/loss/draw counters."""
     with app.app_context():
         user = User.query.get(user_id)
         if not user:
@@ -4920,8 +4943,9 @@ def _award_battle_xp(user_id, amount, won: bool, draw: bool = False):
             GamificationService.add_xp(user_id, 'battle_win' if won else 'battle_draw', amount)
         if won:
             user.battle_wins = (user.battle_wins or 0) + 1
-        elif not draw:
-            # Only count as a loss if not a draw
+        elif draw:
+            user.battle_draws = (user.battle_draws or 0) + 1
+        else:
             user.battle_losses = (user.battle_losses or 0) + 1
         db.session.commit()
 
@@ -5941,6 +5965,53 @@ def admin_users():
     users = query.order_by(User.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
     
     return render_template('admin/users/list.html', users=users, search=search, filter_type=filter_type)
+
+@app.route('/admin/user-activity')
+@login_required
+@admin_required
+def admin_user_activity():
+    """Admin view for user presence and recent activity."""
+    # Define threshold for "offline"
+    threshold = datetime.utcnow() - timedelta(minutes=ONLINE_THRESHOLD_MINUTES)
+    
+    # Fetch actually online users (in set AND seen recently)
+    active_users = []
+    if online_users:
+        active_users = User.query.filter(
+            User.id.in_(online_users), 
+            User.last_seen >= threshold,
+            User.is_admin == False
+        ).all()
+        # Prune stale IDs from set
+        active_ids = {u.id for u in active_users}
+        online_users.intersection_update(active_ids)
+        
+    # Format current time to IST helper
+    def format_ist(dt):
+        if not dt: return "Never"
+        if dt.tzinfo is None:
+            dt = utc.localize(dt)
+        ist_dt = dt.astimezone(IST)
+        
+        # If it was today, just show time. If yesterday, "Yesterday at ...". Else "DD MMM at ..."
+        now = datetime.now(IST)
+        if ist_dt.date() == now.date():
+            return f"Today at {ist_dt.strftime('%I:%M %p')}"
+        elif (now.date() - ist_dt.date()).days == 1:
+            return f"Yesterday at {ist_dt.strftime('%I:%M %p')}"
+        return ist_dt.strftime('%d %b at %I:%M %p')
+
+    # All regular users sorted by last_seen
+    page = request.args.get('page', 1, type=int)
+    all_users = User.query.filter(User.is_admin == False).order_by(db.desc(User.last_seen)).paginate(page=page, per_page=30, error_out=False)
+    
+    unread_support_count = SupportTicket.query.filter_by(status='open').count()
+    
+    return render_template('admin/user_activity.html', 
+                          active_users=active_users, 
+                          all_users=all_users,
+                          format_ist=format_ist,
+                          unread_support_count=unread_support_count)
 
 @app.route('/admin/users/<int:user_id>')
 @login_required
@@ -7521,6 +7592,8 @@ with app.app_context():
          'ALTER TABLE "user" ADD COLUMN battle_wins INTEGER DEFAULT 0'),
         ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_losses INTEGER DEFAULT 0",
          'ALTER TABLE "user" ADD COLUMN battle_losses INTEGER DEFAULT 0'),
+        ("ALTER TABLE \"user\" ADD COLUMN IF NOT EXISTS battle_draws INTEGER DEFAULT 0",
+         'ALTER TABLE "user" ADD COLUMN battle_draws INTEGER DEFAULT 0'),
     ]
 
     _is_postgres = 'postgresql' in app.config.get('SQLALCHEMY_DATABASE_URI', '')
@@ -7539,7 +7612,7 @@ with app.app_context():
             else:
                 print(f"⚠️  Migration warning: {_col_err}")
 
-    print("✅  DB migrations complete (battle_xp / battle_wins / battle_losses included).")
+    print("✅  DB migrations complete (battle_xp / battle_wins / battle_losses / battle_draws included).")
 
 
 # ============================================================================
