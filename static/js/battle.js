@@ -188,25 +188,22 @@ document.addEventListener('DOMContentLoaded', () => {
     function updateVisibilityUI() {
         const mpWrap = $('make-public-wrap');
         if (!mpWrap) return;
-        const label = mpWrap.querySelector('div > div:first-child');
+        const label = $('vis-label');
         const desc  = $('room-visibility-desc');
         const btn   = $('btn-toggle-public');
         if (roomVisibility === 'public') {
             if (label) label.textContent = '🌐 Room is Public';
-            if (desc) desc.textContent = 'Auto-matchmaking players can join this room.';
-            if (btn)  { btn.textContent = '🔒 Make Private'; btn.style.background = '#ef4444'; btn.style.color = 'white'; btn.style.border = 'none'; }
+            if (desc)  desc.textContent  = 'Matchmaking players can auto-join this room.';
+            if (btn)   { btn.textContent = '🔒 Make Private'; btn.style.background = '#ef4444'; btn.style.color = 'white'; btn.style.border = 'none'; }
         } else {
             if (label) label.textContent = '🔒 Room is Private';
-            if (desc) desc.textContent = 'Only invited friends can join.';
-            if (btn)  { btn.textContent = '🌐 Make Public'; btn.style.background = ''; btn.style.color = ''; btn.style.border = ''; }
+            if (desc)  desc.textContent  = "Your friend didn't join? Make it public so matchmaking players can fill the slot.";
+            if (btn)   { btn.textContent = '🌐 Make Public'; btn.style.background = ''; btn.style.color = ''; btn.style.border = ''; }
         }
+        // Update mode label text
         const ml = $('wr-mode-label');
-        if (ml && currentRoom) {
-            const parts = (ml.textContent || '').split('·');
-            if (parts.length >= 2) {
-                parts[1] = ` ${roomVisibility === 'private' ? '🔒 Private' : '🌐 Public'} `;
-                ml.textContent = parts.join('·');
-            }
+        if (ml && ml.textContent) {
+            ml.textContent = ml.textContent.replace(/🔒 Private|🌐 Public/, roomVisibility === 'private' ? '🔒 Private' : '🌐 Public');
         }
     }
 
