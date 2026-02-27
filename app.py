@@ -4711,12 +4711,64 @@ def on_battle_queue_join(data):
 
 
 def _try_form_match(mode):
-    """Check if enough compatible players are queued to start a match."""
+    """Check if enough compatible players are queued to start a match.
+    Priority: first try to fill any public waiting rooms, then form new rooms."""
     import random
     needed = get_total_slots(mode)
     queue = matchmaking_queue.get(mode, [])
 
+    if len(queue) < 1:
+        return
+
+    queue.sort(key=lambda e: e['joined_at'])
+
+    # ── Priority: slot queued players into existing PUBLIC waiting rooms ──
+    for room_code, room in list(battles.items()):
+        if room.get('mode') != mode:
+            continue
+        if room.get('visibility') != 'public':
+            continue
+        if room.get('state') != 'waiting':
+            continue
+        total_slots = get_total_slots(mode)
+        open_slots = total_slots - len(room['players'])
+        if open_slots <= 0:
+            continue
+
+        # Fill this room with queued players one by one
+        for entry in list(queue):
+            if entry['user_id'] in room['players']:
+                continue
+            if open_slots <= 0:
+                break
+            # Check rank compatibility with existing players
+            existing_ranks = [room['players'][pid].get('rank', 'Recruit') for pid in room['players']]
+            if not all(ranks_compatible(entry['rank'], r) for r in existing_ranks):
+                continue
+            # Remove from queue
+            matchmaking_queue[mode] = [e for e in matchmaking_queue[mode] if e['user_id'] != entry['user_id']]
+            queue = matchmaking_queue.get(mode, [])
+            # Add to room
+            _add_player_to_room(room_code, entry['user_id'], entry['name'], entry['sid'])
+            socketio.emit('battle_match_found', {
+                'room_code': room_code,
+                'mode': mode,
+                'your_team': room['players'][entry['user_id']].get('team'),
+                'players': [{
+                    'name': p['name'],
+                    'team': p['team']
+                } for p in room['players'].values()],
+            }, room=entry['sid'])
+            print(f"[MM] {entry['name']} joined existing public room {room_code}")
+            open_slots -= 1
+
+    # ── If still enough players queued, form a brand-new room ──
+    queue = matchmaking_queue.get(mode, [])
     if len(queue) < needed:
+        for entry in queue:
+            socketio.emit('battle_queue_status', {
+                'status': 'searching', 'mode': mode, 'queue_size': len(queue)
+            }, room=entry['sid'])
         return
 
     queue.sort(key=lambda e: e['joined_at'])
@@ -4744,7 +4796,6 @@ def _try_form_match(mode):
                     'joined_at': datetime.utcnow(), 'team': None
                 }
 
-            # Pick random config upfront
             diff = random.choice(['Easy', 'Medium', 'Hard'])
             lang = random.choice(['Python', 'JavaScript', 'Java', 'C++'])
 
@@ -4755,7 +4806,7 @@ def _try_form_match(mode):
                 'visibility': 'public',
                 'players': players,
                 'scores': {uid: 0 for uid in players},
-                'state': 'ready',   # Room is full from the start — ready to begin
+                'state': 'ready',
                 'config': {'difficulty': diff, 'language': lang},
                 'problem': None,
                 'submissions': {},
@@ -4767,7 +4818,6 @@ def _try_form_match(mode):
 
             player_list = [{'name': p['name'], 'team': p['team']} for p in battles[room_code]['players'].values()]
 
-            # Tell each matched player which room and team they're on
             for e in selected:
                 my_team = battles[room_code]['players'][e['user_id']]['team']
                 socketio.emit('battle_match_found', {
@@ -4784,6 +4834,7 @@ def _try_form_match(mode):
         socketio.emit('battle_queue_status', {
             'status': 'searching', 'mode': mode, 'queue_size': len(queue)
         }, room=entry['sid'])
+
 
 
 @socketio.on('battle_queue_leave')
@@ -4806,7 +4857,7 @@ def on_battle_create(data):
         return
 
     mode = data.get('mode', '1v1')
-    visibility = data.get('visibility', 'public')  # 'public' | 'private'
+    visibility = 'private'  # All rooms start private; host can make public from waiting room
 
     room_code = generate_room_code()
     battles[room_code] = {
@@ -4995,7 +5046,33 @@ def _add_player_to_room(room_code, user_id, name, sid):
         print(f"[Battle] Room {room_code} READY — {room['config']['difficulty']} {room['config']['language']}")
 
 
-@socketio.on('battle_join_response')
+@socketio.on('battle_toggle_visibility')
+def on_battle_toggle_visibility(data):
+    """Host toggles their private room between private and public."""
+    if not current_user.is_authenticated:
+        return
+    room_code = data.get('room_code', '').strip().upper()
+    new_vis   = data.get('visibility', 'private')
+
+    if room_code not in battles:
+        emit('battle_error', {'message': 'Room not found.'})
+        return
+    room = battles[room_code]
+    if room['host'] != current_user.id:
+        emit('battle_error', {'message': 'Only the host can change visibility.'})
+        return
+
+    room['visibility'] = new_vis
+    print(f"[Battle] Room {room_code} visibility changed to {new_vis} by {current_user.first_name}")
+
+    # Notify everyone in the room of the change
+    socketio.emit('battle_visibility_changed', {
+        'room_code': room_code,
+        'visibility': new_vis,
+    }, room=room_code)
+
+
+
 def on_battle_join_response(data):
     """Host accepts or rejects a pending join request."""
     if not current_user.is_authenticated:

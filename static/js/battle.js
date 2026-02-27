@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentRoom  = sessionStorage.getItem('battle_room_code') || null;
     let isHost       = false;
     let selMode      = '1v1';
-    let selVis       = 'public';
+    let selVis       = 'private';  // All new rooms start private
     let battleTimer  = null;
     let heartbeat    = null;
     let pendInvite   = null;
@@ -65,14 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function setStatus(t) { const el = $('status-display'); if (el) el.textContent = t; }
 
-    /* ── Mode / Visibility toggles ── */
+    /* ── Mode toggles ── */
     document.querySelectorAll('.mode-btn').forEach(b => b.addEventListener('click', () => {
         document.querySelectorAll('.mode-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active'); selMode = b.dataset.mode;
-    }));
-    document.querySelectorAll('.vis-btn').forEach(b => b.addEventListener('click', () => {
-        document.querySelectorAll('.vis-btn').forEach(x => x.classList.remove('active'));
-        b.classList.add('active'); selVis = b.dataset.vis;
     }));
 
     /* ── Copy code ── */
@@ -171,14 +167,64 @@ document.addEventListener('DOMContentLoaded', () => {
     /* ════════════════════════════════════
        WAITING ROOM
     ════════════════════════════════════ */
+    let roomVisibility = 'private';  // tracks current room's visibility state
+
     function enterWaiting(data) {
         currentRoom = data.room_code;
+        roomVisibility = data.visibility || 'private';
         const rc = $('wr-room-code'); if (rc) rc.textContent = data.room_code;
         const ml = $('wr-mode-label');
-        if (ml) ml.textContent = `Mode: ${data.mode||'1v1'} · ${data.visibility==='private'?'🔒 Private':'🌐 Public'} · ${data.slots_filled||1}/${data.slots_total||2} players`;
+        if (ml) ml.textContent = `Mode: ${data.mode||'1v1'} · ${roomVisibility==='private'?'🔒 Private':'🌐 Public'} · ${data.slots_filled||1}/${data.slots_total||2} players`;
         buildSlots(data.slots_filled||1, data.slots_total||2);
+
+        // Show "Make Public" toggle only for the host (not auto-matched players, not joiners)
+        const mpWrap = $('make-public-wrap');
+        if (mpWrap) mpWrap.style.display = isHost ? 'block' : 'none';
+        updateVisibilityUI();
+
         showScreen('screen-waiting');
     }
+
+    function updateVisibilityUI() {
+        const mpWrap = $('make-public-wrap');
+        if (!mpWrap) return;
+        const label = mpWrap.querySelector('div > div:first-child');
+        const desc  = $('room-visibility-desc');
+        const btn   = $('btn-toggle-public');
+        if (roomVisibility === 'public') {
+            if (label) label.textContent = '🌐 Room is Public';
+            if (desc) desc.textContent = 'Auto-matchmaking players can join this room.';
+            if (btn)  { btn.textContent = '🔒 Make Private'; btn.style.background = '#ef4444'; btn.style.color = 'white'; btn.style.border = 'none'; }
+        } else {
+            if (label) label.textContent = '🔒 Room is Private';
+            if (desc) desc.textContent = 'Only invited friends can join.';
+            if (btn)  { btn.textContent = '🌐 Make Public'; btn.style.background = ''; btn.style.color = ''; btn.style.border = ''; }
+        }
+        const ml = $('wr-mode-label');
+        if (ml && currentRoom) {
+            const parts = (ml.textContent || '').split('·');
+            if (parts.length >= 2) {
+                parts[1] = ` ${roomVisibility === 'private' ? '🔒 Private' : '🌐 Public'} `;
+                ml.textContent = parts.join('·');
+            }
+        }
+    }
+
+    // Toggle room visibility (host only)
+    on('btn-toggle-public', 'click', () => {
+        if (!currentRoom) return;
+        const newVis = (roomVisibility === 'private') ? 'public' : 'private';
+        socket.emit('battle_toggle_visibility', { room_code: currentRoom, visibility: newVis });
+    });
+
+    // Server confirms visibility change
+    socket.on('battle_visibility_changed', data => {
+        roomVisibility = data.visibility;
+        updateVisibilityUI();
+        toast(data.visibility === 'public'
+            ? '🌐 Room is now Public — matchmaking players may join!'
+            : '🔒 Room is now Private again.', 'info');
+    });
 
     function buildSlots(filled, total) {
         const c = $('wr-slots'); if (!c) return; c.innerHTML = '';

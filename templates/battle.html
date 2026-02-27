@@ -450,16 +450,7 @@
                 <button class="btn-battle mode-btn" data-mode="3v3">3v3</button>
             </div>
 
-            <!-- Visibility toggle (only relevant for Create Room) -->
-            <div style="display:flex;gap:0.5rem;justify-content:center;margin-bottom:1.5rem;">
-                <button class="btn-battle vis-btn active" data-vis="public"
-                    title="Anyone can join by code; auto-matchmaking pools this room">
-                    🌐 Public
-                </button>
-                <button class="btn-battle vis-btn" data-vis="private" title="Only invited friends can join">
-                    🔒 Private
-                </button>
-            </div>
+
 
             <!-- Action buttons -->
             <button id="btn-create" class="btn-battle btn-primary"
@@ -520,6 +511,19 @@
                 <div style="background:#2a1e1e;padding:1rem;border-radius:8px;border:1px solid #7a1e1e;">
                     <div style="color:#f87171;font-weight:700;margin-bottom:0.5rem;">🔴 Team B</div>
                     <div id="team-b-list" style="font-size:0.9rem;color:var(--battle-text-dim);">—</div>
+                </div>
+            </div>
+
+            <!-- Make Public toggle (host only) -->
+            <div id="make-public-wrap" style="display:none;margin-bottom:1rem;background:#1a1a2e;border:1px solid #333;border-radius:8px;padding:0.75rem 1rem;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+                    <div>
+                        <div style="font-weight:600;font-size:0.9rem;color:#e5e5e5;">🔒 Room is Private</div>
+                        <div id="room-visibility-desc" style="font-size:0.78rem;color:#a3a3a3;margin-top:0.15rem;">Only invited friends can join.</div>
+                    </div>
+                    <button id="btn-toggle-public" class="btn-battle btn-secondary" style="white-space:nowrap;font-size:0.85rem;padding:0.4rem 0.9rem;">
+                        🌐 Make Public
+                    </button>
                 </div>
             </div>
 
